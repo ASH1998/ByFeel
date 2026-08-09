@@ -24,7 +24,10 @@ committed.
 Google Cloud CLI authentication is already configured for this project. Do not
 change its account, project, authentication, or any cloud resource without the
 user's direct approval. See [KEY_INSTRUCTIONS.md](KEY_INSTRUCTIONS.md) and the
-[cloud ledger](cloud-ledger/README.md).
+local cloud ledger at `cloud-ledger/README.md` (intentionally ignored by Git).
+
+Project execution status is tracked in the
+[feature and test checklist](docs/project-checklist.md).
 
 ## Decision Gate A
 
