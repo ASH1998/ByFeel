@@ -1,0 +1,73 @@
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Google Cloud credentials and local configuration
+.gcloud/
+.config/gcloud/
+application_default_credentials.json
+service-account*.json
+*-service-account.json
+google-credentials*.json
+credentials.db
+access_tokens.db
+
+# Python / uv
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+
+# Node / Vite
+node_modules/
+.vite/
+.npm/
+.pnpm-store/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Operating systems
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+.cache/
+
+# Local experiment outputs (may contain raw demonstrations)
+runs/
+experiments/gate_a/demo.json
+experiments/gate_a/*.local.json
+
+# Local cloud inventory and billing ledger
+cloud-ledger/

@@ -1,0 +1,10 @@
+{
+  "title": "REPLACE: short name of the demonstrated task",
+  "domain": "REPLACE: task domain",
+  "learner_goal": "REPLACE: observable result a learner should achieve",
+  "raw_demonstration": "REPLACE with a factual transcript of one real three-step demonstration. Include what the teacher did, said, and visibly checked. Preserve vague phrases exactly instead of improving them. This text must contain at least twenty characters.",
+  "constraints": [
+    "REPLACE with real safety, tool, material, or environment constraints; remove this item if none"
+  ]
+}
+
