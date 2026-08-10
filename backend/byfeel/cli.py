@@ -17,7 +17,7 @@ from .experiment import (
     save_artifact,
     save_text,
 )
-from .gemini import GeminiStructuredClient
+from .gemini import ByFeelModelRouter, GeminiStructuredClient
 from .models import ProbeReport, ProbeStatus
 
 
@@ -36,15 +36,24 @@ def run_gate_a(args: argparse.Namespace) -> int:
     load_dotenv()
     api_key = os.getenv("GOOGLE_API_KEY", "").strip()
     model = os.getenv("GOOGLE_MODEL", "").strip()
-    if not api_key or not model:
-        print("Set GOOGLE_API_KEY and GOOGLE_MODEL in .env before running Gate A.", file=sys.stderr)
+    lite_model = os.getenv("GOOGLE_MODEL_LITE", "").strip()
+    if not api_key or not model or not lite_model:
+        print(
+            "Set GOOGLE_API_KEY, GOOGLE_MODEL, and GOOGLE_MODEL_LITE in .env "
+            "before running Gate A.",
+            file=sys.stderr,
+        )
         return 2
 
     demo = load_demo(args.demo)
     run_dir = create_run_directory(args.output)
     save_artifact(run_dir / "00_teacher_demo.json", demo)
 
-    experiment = GateAExperiment(GeminiStructuredClient(api_key=api_key, model=model))
+    client = ByFeelModelRouter(
+        main=GeminiStructuredClient(api_key=api_key, model=model),
+        lite=GeminiStructuredClient(api_key=api_key, model=lite_model),
+    )
+    experiment = GateAExperiment(client)
     print(f"Run: {run_dir}")
     print("Extracting learner-facing procedure...")
     procedure = experiment.extract(demo)
@@ -78,7 +87,7 @@ def run_gate_a(args: argparse.Namespace) -> int:
     save_artifact(run_dir / "05_probe_after.json", after)
     _print_report("Probe after repair", after)
 
-    manifest = build_manifest(run_dir=run_dir, model=model, before=before, after=after)
+    manifest = build_manifest(run_dir=run_dir, model=client.model, before=before, after=after)
     save_artifact(run_dir / "manifest.json", manifest)
     result = "PASSED" if manifest.gate_passed else "FAILED"
     print(f"\nDecision Gate A: {result}")
@@ -95,7 +104,27 @@ def build_parser() -> argparse.ArgumentParser:
     gate.add_argument("--clarification", help="Teacher clarification text")
     gate.add_argument("--clarification-file", type=Path)
     gate.set_defaults(handler=run_gate_a)
+    serve = subparsers.add_parser("serve", help="Run the local ByFeel MVP web app")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument(
+        "--cloud",
+        action="store_true",
+        help="Use the existing default Firestore database and approved evidence bucket",
+    )
+    serve.add_argument("--test-namespace", default="local-mvp")
+    serve.set_defaults(handler=run_server)
     return parser
+
+
+def run_server(args: argparse.Namespace) -> int:
+    import uvicorn
+
+    if args.cloud:
+        os.environ["BYFEEL_REPOSITORY"] = "firestore"
+        os.environ["BYFEEL_TEST_NAMESPACE"] = args.test_namespace
+    uvicorn.run("byfeel.api:app", host=args.host, port=args.port, reload=False)
+    return 0
 
 
 def main() -> None:
