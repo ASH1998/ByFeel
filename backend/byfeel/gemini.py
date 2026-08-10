@@ -52,7 +52,6 @@ class GeminiStructuredClient:
                 system_instruction=system,
                 response_mime_type="application/json",
                 response_json_schema=schema.model_json_schema(),
-                temperature=0.1,
             ),
         )
         usage = response.usage_metadata

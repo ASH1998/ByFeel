@@ -42,6 +42,7 @@ def test_gemini_uses_json_schema_path_and_validates_response(monkeypatch) -> Non
     assert result.id == "contract"
     assert models.config.response_schema is None
     assert models.config.response_json_schema["additionalProperties"] is False
+    assert models.config.temperature is None
     assert client.usage == [
         {
             "prompt_tokens": 10,

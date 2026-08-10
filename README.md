@@ -73,6 +73,12 @@ Optional PNG, JPEG, and WebP snapshots are limited to 5 MiB. The API validates
 the media signature, records a SHA-256 checksum and provenance, and sends a
 learner snapshot to Gemini only at an explicit checkpoint.
 
+The configured models have explicit roles:
+
+- `GOOGLE_MODEL` (`gemini-3.6-flash`) runs the reasoning-critical blinded probe.
+- `GOOGLE_MODEL_LITE` (`gemini-3.5-flash-lite`) runs extraction, bounded repair,
+  and learner checkpoint evaluation to reduce latency and cost.
+
 ### Existing Firestore and evidence bucket
 
 To use only the already approved cloud resources for local test application
