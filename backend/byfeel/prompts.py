@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from .models import KnowledgeGap, LearnerProcedure, Procedure, TeacherDemo
+from .models import (
+    KnowledgeGap,
+    LearnerObservation,
+    LearnerProcedure,
+    LearnerStep,
+    Procedure,
+    TeacherDemo,
+)
 
 EXTRACTION_SYSTEM = """You are ByFeel's Teaching Partner in a mechanism-validation experiment.
 Convert a teacher's raw three-step demonstration into a precise learner-facing procedure.
@@ -27,6 +34,14 @@ learner-facing and observable, then summarize the exact mutation. Return only th
 structured artifact."""
 
 
+CHECKPOINT_SYSTEM = """You are ByFeel's Learner Coach evaluating one procedure checkpoint.
+Use only the approved learner-facing step and the learner observation or snapshot. Choose advance
+only when an observable completion condition is satisfied with confidence >= 0.8. Otherwise block
+with teacher-derived corrective guidance, request another snapshot when evidence quality is poor,
+or require human confirmation for unavailable touch, smell, taste, or safety cues. Never claim to
+sense an unavailable modality. Return only the requested structured artifact."""
+
+
 def extraction_prompt(demo: TeacherDemo) -> str:
     return (
         "Extract a learner-facing procedure from this teacher demonstration:\n"
@@ -47,4 +62,12 @@ def repair_prompt(procedure: Procedure, blocker: KnowledgeGap, teacher_clarifica
         f"CURRENT PROCEDURE:\n{procedure.model_dump_json(indent=2)}\n\n"
         f"SELECTED BLOCKER:\n{blocker.model_dump_json(indent=2)}\n\n"
         f"TEACHER CLARIFICATION:\n{teacher_clarification.strip()}"
+    )
+
+
+def checkpoint_prompt(step: LearnerStep, observation: LearnerObservation) -> str:
+    return (
+        "Evaluate the learner's state for this one approved step.\n\n"
+        f"LEARNER STEP:\n{step.model_dump_json(indent=2)}\n\n"
+        f"LEARNER OBSERVATION:\n{observation.model_dump_json(indent=2)}"
     )
