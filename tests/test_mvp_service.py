@@ -4,6 +4,7 @@ from typing import TypeVar
 
 import pytest
 from byfeel.models import (
+    BlockerReviewDecision,
     CheckpointDecision,
     CheckpointEvaluation,
     IssueType,
@@ -17,6 +18,7 @@ from byfeel.models import (
     ProcedureStep,
     RepairResult,
     TeacherDemo,
+    VisualCheckpointState,
 )
 from byfeel.repositories import ConflictError, InMemoryRepository
 from byfeel.service import BlindedProbeGateway, ByFeelService
@@ -139,6 +141,12 @@ def test_complete_teacher_to_learner_recovery_flow() -> None:
     assert sentinel in client.prompts[0]
     assert sentinel not in client.prompts[1]
 
+    service.review_blocker(
+        taught.probe_run.probe_run_id,
+        BlockerReviewDecision.GENUINE,
+        "The learner cannot decide when to stop pressing without an observable cue.",
+    )
+
     repaired = service.clarify(
         taught.procedure.id,
         "It is ready when the crease stays flat after I remove my hand.",
@@ -146,6 +154,7 @@ def test_complete_teacher_to_learner_recovery_flow() -> None:
     assert repaired.probe_run.report.status == ProbeStatus.UNBLOCKED
     assert len(repository.list_corrections(taught.procedure.id)) == 1
 
+    service.approve_procedure_for_learner(taught.procedure.id)
     learner = service.start_learner(taught.procedure.id)
     blocked = service.checkpoint(
         learner.session.session_id,
@@ -161,6 +170,30 @@ def test_complete_teacher_to_learner_recovery_flow() -> None:
     assert completed.session.status == "completed"
     assert completed.latest_event.evaluation.teacher_derived is True
     assert len(repository.list_learner_events(learner.session.session_id)) == 2
+
+
+def test_adk_repair_provenance_rejects_invented_or_non_verbatim_claims() -> None:
+    before = initial_procedure()
+    invented = initial_procedure().model_copy(deep=True)
+    invented.steps[0].completion_conditions = ["Wait exactly five minutes"]
+
+    with pytest.raises(ValueError, match="exact teacher-answer substrings"):
+        ByFeelService._validate_repair_provenance(
+            before,
+            invented,
+            ["step-1"],
+            "Stop when the crease stays flat.",
+            ["five minutes"],
+        )
+
+    with pytest.raises(ValueError, match="every new learner-facing repair claim"):
+        ByFeelService._validate_repair_provenance(
+            before,
+            invented,
+            ["step-1"],
+            "Stop when the crease stays flat.",
+            ["crease stays flat"],
+        )
 
 
 def test_probe_gateway_rejects_canonical_procedure() -> None:
@@ -185,6 +218,13 @@ def test_model_invariants_reject_duplicates_and_unsafe_advance() -> None:
             decision=CheckpointDecision.ADVANCE,
             confidence=0.79,
             explanation="Not confident enough.",
+        )
+    with pytest.raises(ValidationError, match="advance requires a ready visual state"):
+        CheckpointEvaluation(
+            decision=CheckpointDecision.ADVANCE,
+            visual_state=VisualCheckpointState.INCORRECT_OR_OVERSHOT,
+            confidence=0.95,
+            explanation="The mixture is uniform but does not match the target.",
         )
     gap = KnowledgeGap.model_validate(
         {

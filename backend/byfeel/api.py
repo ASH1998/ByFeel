@@ -15,21 +15,48 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-from .checkpoint import GeminiCheckpointEvaluator
+from .adk_runtime import AdkLearnerCoachRuntime, AdkProbeRuntime, AdkTeachingPartnerRuntime
 from .evidence import EvidenceStore, InMemoryEvidenceStore
 from .gemini import ByFeelModelRouter, GeminiStructuredClient
+from .media_ingest import MediaDraft
 from .models import (
+    ApprovedDemonstration,
+    BlockerReview,
+    BlockerReviewDecision,
     EvidenceRef,
     LearnerObservation,
     LearnerProgress,
     RepairOutcome,
-    TeacherDemo,
+    TeacherSession,
     TeachingOutcome,
 )
-from .repositories import InMemoryRepository, NotFoundError
+from .repositories import ConflictError, InMemoryRepository, NotFoundError
 from .service import ByFeelService
 
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.3.0"
+
+
+def media_review_payload(session_id: str, draft: MediaDraft) -> dict[str, object]:
+    """Return review-safe teacher data without private server paths or raw media."""
+
+    return {
+        "session_id": session_id,
+        "status": "review_required",
+        "source_sha256": draft.source_sha256,
+        "speech_mode": draft.speech_mode.value,
+        "sampling_strategy": draft.sampling_strategy,
+        "metadata": draft.metadata.model_dump(mode="json"),
+        "frames": [
+            {
+                "sample_id": sample.sample_id,
+                "timestamp_seconds": sample.timestamp_seconds,
+                "url": f"/api/teacher/sessions/{session_id}/frames/{sample.sample_id}",
+            }
+            for sample in draft.frame_samples
+        ],
+        "analysis": draft.analysis.model_dump(mode="json"),
+        "human_approval_required": True,
+    }
 
 
 class ClarificationRequest(BaseModel):
@@ -41,10 +68,32 @@ class StartLearnerRequest(BaseModel):
     procedure_id: str = Field(min_length=1, max_length=200)
 
 
+class BlockerReviewRequest(BaseModel):
+    decision: BlockerReviewDecision
+    reason: str = Field(min_length=10, max_length=4000)
+
+
 class EvidenceUploadRequest(BaseModel):
     content_base64: str = Field(min_length=1)
     content_type: str
     source: Literal["teacher", "learner", "test"]
+
+
+class CreateTeacherSessionRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    domain: str = Field(min_length=1, max_length=200)
+    learner_goal: str = Field(min_length=1, max_length=500)
+    constraints: list[str] = Field(default_factory=list, max_length=20)
+    speech_mode: Literal["silent", "spoken", "unsure"]
+
+
+class TeacherVideoRequest(BaseModel):
+    content_base64: str = Field(min_length=1)
+    content_type: Literal["video/mp4", "video/webm", "video/quicktime"]
+
+
+class FactualApprovalRequest(BaseModel):
+    approved_factual_record: str = Field(min_length=20, max_length=20000)
 
 
 def build_local_components() -> tuple[ByFeelService, EvidenceStore]:
@@ -81,7 +130,13 @@ def build_local_components() -> tuple[ByFeelService, EvidenceStore]:
     service = ByFeelService(
         repository=repository,
         teaching_client=client,
-        checkpoint_evaluator=GeminiCheckpointEvaluator(lite_client, evidence_store),
+        checkpoint_evaluator=AdkLearnerCoachRuntime(
+            model=lite_model,
+            evidence_store=evidence_store,
+        ),
+        probe_runtime=AdkProbeRuntime(model=model),
+        teaching_runtime=AdkTeachingPartnerRuntime(model=lite_model),
+        media_client=lite_client,
     )
     return service, evidence_store
 
@@ -115,7 +170,7 @@ def create_app(
                     "error": {"code": "not_found", "message": str(exc), "request_id": request_id}
                 },
             )
-        except ValueError as exc:
+        except (ConflictError, ValueError) as exc:
             response = JSONResponse(
                 status_code=409,
                 content={
@@ -160,13 +215,83 @@ def create_app(
     def version() -> dict[str, str]:
         return {"version": APP_VERSION}
 
-    @app.post("/api/teacher/sessions", response_model=TeachingOutcome)
-    def teach(demo: TeacherDemo) -> TeachingOutcome:
-        return get_service().teach(demo)
+    @app.post("/api/teacher/sessions", response_model=TeacherSession)
+    def create_teacher_session(request: CreateTeacherSessionRequest) -> TeacherSession:
+        return get_service().create_teacher_session(**request.model_dump())
+
+    @app.post("/api/demo/seeded-rehearsal", response_model=TeachingOutcome)
+    def seeded_rehearsal() -> TeachingOutcome:
+        return get_service().seed_rehearsal()
+
+    @app.get("/api/teacher/sessions/{session_id}")
+    def teacher_session(session_id: str):
+        service = get_service()
+        session = service.repository.get_teacher_session(session_id)
+        response: dict[str, object] = {"session": session.model_dump(mode="json")}
+        if session.media_run_id:
+            response["media_review"] = media_review_payload(
+                session_id,
+                service.repository.get_media_draft(session_id),
+            )
+        if session.procedure_id:
+            response["procedure"] = service.repository.get_procedure(
+                session.procedure_id
+            ).model_dump(mode="json")
+            try:
+                probe = service.repository.latest_probe_run(session.procedure_id, "after_repair")
+            except NotFoundError:
+                probe = service.repository.latest_probe_run(session.procedure_id, "before_repair")
+            response["probe_run"] = probe.model_dump(mode="json")
+        return response
+
+    @app.post("/api/teacher/sessions/{session_id}/media")
+    def process_teacher_media(session_id: str, request: TeacherVideoRequest):
+        try:
+            video = b64decode(request.content_base64, validate=True)
+        except (Base64Error, ValueError) as exc:
+            raise ValueError("content_base64 is not valid base64") from exc
+        draft = get_service().process_teacher_video(
+            session_id,
+            video=video,
+            content_type=request.content_type,
+        )
+        return media_review_payload(session_id, draft)
+
+    @app.get("/api/teacher/sessions/{session_id}/frames/{sample_id}")
+    def teacher_frame(session_id: str, sample_id: str) -> FileResponse:
+        draft = get_service().repository.get_media_draft(session_id)
+        try:
+            sample = next(item for item in draft.frame_samples if item.sample_id == sample_id)
+        except StopIteration as exc:
+            raise NotFoundError(f"frame sample {sample_id!r} was not found") from exc
+        return FileResponse(sample.path, media_type="image/jpeg")
+
+    @app.post(
+        "/api/teacher/sessions/{session_id}/factual-approval",
+        response_model=ApprovedDemonstration,
+    )
+    def approve_factual_record(
+        session_id: str, request: FactualApprovalRequest
+    ) -> ApprovedDemonstration:
+        return get_service().approve_factual_record(
+            session_id,
+            request.approved_factual_record,
+        )
+
+    @app.post(
+        "/api/teacher/sessions/{session_id}/extract",
+        response_model=TeachingOutcome,
+    )
+    def extract_approved_demonstration(session_id: str) -> TeachingOutcome:
+        return get_service().extract_approved_demonstration(session_id)
 
     @app.post("/api/procedures/{procedure_id}/clarifications", response_model=RepairOutcome)
     def clarify(procedure_id: str, request: ClarificationRequest) -> RepairOutcome:
         return get_service().clarify(procedure_id, request.clarification, request.evidence)
+
+    @app.post("/api/probe-runs/{probe_run_id}/review", response_model=BlockerReview)
+    def review_blocker(probe_run_id: str, request: BlockerReviewRequest) -> BlockerReview:
+        return get_service().review_blocker(probe_run_id, request.decision, request.reason)
 
     @app.post("/api/evidence", response_model=EvidenceRef)
     def upload_evidence(request: EvidenceUploadRequest) -> EvidenceRef:
@@ -184,6 +309,10 @@ def create_app(
     def procedure(procedure_id: str):
         return get_service().repository.get_procedure(procedure_id)
 
+    @app.post("/api/procedures/{procedure_id}/learner-approval")
+    def approve_procedure_for_learner(procedure_id: str):
+        return get_service().approve_procedure_for_learner(procedure_id)
+
     @app.post("/api/learner/sessions", response_model=LearnerProgress)
     def start_learner(request: StartLearnerRequest) -> LearnerProgress:
         return get_service().start_learner(request.procedure_id)
@@ -192,9 +321,48 @@ def create_app(
     def checkpoint(session_id: str, observation: LearnerObservation) -> LearnerProgress:
         return get_service().checkpoint(session_id, observation)
 
+    @app.get("/api/learner/sessions/{session_id}", response_model=LearnerProgress)
+    def resume_learner(session_id: str) -> LearnerProgress:
+        return get_service().resume_learner(session_id)
+
     @app.get("/api/learner/sessions/{session_id}/events")
     def events(session_id: str):
         return get_service().repository.list_learner_events(session_id)
+
+    @app.get("/api/judge/evidence/{procedure_id}")
+    def judge_evidence(procedure_id: str):
+        repository = get_service().repository
+        repository.get_procedure(procedure_id)
+        return {
+            "gate_a": {
+                "status": "incomplete",
+                "recorded_calls_used": 12,
+                "call_ceiling": 18,
+                "actual_billed_cost": "unknown",
+                "limitation": (
+                    "UI and ADK integration do not pass Gate A; real-demonstration evidence and "
+                    "final human reliability review remain required."
+                ),
+            },
+            "procedure_versions": repository.list_procedure_versions(procedure_id),
+            "probe_runs": repository.list_probe_runs(procedure_id),
+            "blocker_reviews": repository.list_blocker_reviews(procedure_id),
+            "corrections": repository.list_corrections(procedure_id),
+            "agent_runs": repository.list_agent_runs(procedure_id),
+            "audit_events": repository.list_audit_events(procedure_id),
+            "blindness_boundary": {
+                "probe_input": "frozen LearnerProcedure projection",
+                "excluded": [
+                    "raw teacher video and audio",
+                    "teacher-only factual draft",
+                    "hidden notes and evidence",
+                    "canonical repository access",
+                    "correction history",
+                    "previous probe session or reasoning",
+                ],
+                "tool_policy": ["read_learner_artifact", "set_model_response"],
+            },
+        }
 
     return app
 
