@@ -10,6 +10,69 @@ Legend:
 - Items marked **gate** block later phases
 - Cloud checkboxes never constitute approval; `KEY_INSTRUCTIONS.md` still applies
 
+## Current snapshot — 2026-08-10
+
+### Local product loop
+
+- [x] Ingest bounded silent or voiced teacher video.
+- [x] Extract duration-aware visual frames and conditional audio.
+- [x] Produce a teacher-only factual media draft.
+- [x] Require human transcript approval before canonical procedure extraction.
+- [x] Keep raw media and teacher-only context outside the blinded probe.
+- [x] Extract a learner-facing procedure with application-owned lifecycle state.
+- [x] Run a fresh learner-only blinded probe.
+- [x] Separate execution blockers from optional precision improvements.
+- [x] Require immutable human blocker review before clarification or repair.
+- [x] Prevent false blockers from entering clarification, repair, or reprobe.
+- [x] Preserve calls and token usage in ignored run artifacts and the ledger.
+- [x] Add bounded teacher video upload and synchronized sampled-frame review to the browser.
+- [ ] Add true event-triggered capture instead of bounded offline sampling.
+
+### Judge-ready build checkpoints
+
+- [x] Audit the existing implementation, tests, ignored run artifacts, and cloud ledger.
+- [x] Document the proposed UI, API, ADK, isolation, persistence, and test architecture.
+- [x] Decide to extend the existing FastAPI browser application instead of adding React.
+- [x] Identify the browser/API blocker-review bypass as a required integrity fix.
+- [x] Verify the current official hackathon rules from the supplied Devpost rules page.
+- [x] Distinguish mandatory requirements, bonuses, judging, deliverables, deployment, and eligibility.
+- [x] Record that final video proof requires a cloud-hosted backend beyond this goal's deployment boundary.
+- [x] Begin ADK implementation with the rules checkpoint resolved.
+
+### Google ADK foundation
+
+- [x] Pin Google ADK 2.x through uv and the project lockfile.
+- [x] Route production blinded probes through Google ADK without a live wiring call.
+- [x] Create a new ADK agent, runner, user, and in-memory session for every probe/reprobe.
+- [x] Restrict the probe to a frozen `LearnerProcedure` and one read-only application tool.
+- [x] Add explicit Teaching Partner, Blinded Probe, and Learner Coach tool policies.
+- [x] Persist safe ADK role/run/session/tool/token metadata without prompts or tool results.
+- [x] Test fresh sessions, teacher-context sentinel exclusion, forbidden-tool calls, and canonical-input rejection.
+- [x] Wrap approved teacher extraction and reviewed repair as Teaching Partner ADK operations.
+- [x] Wrap learner checkpoint orchestration as a Learner Coach ADK operation.
+
+### Evidence status
+
+- Gate A: **incomplete; not passed or failed**.
+- Same-procedure demonstrations completed: **1 of 3** (`Banana Panic`).
+- Genuine blockers correctly repaired: **0 of required 2**.
+- Demonstration 1 result: correctly `UNBLOCKED` after false-blocker calibration;
+  no repair opportunity.
+- Separate wood-selection use case: voiced ingest, human approval, extraction,
+  and correctly unblocked probe complete; excluded from the same-procedure count.
+- Tracked Gemini experiments: **12 of 18 calls**; actual later billed cost is
+  unknown and is not estimated.
+- Verification: **42 automated tests pass**; Ruff lint and formatting pass.
+
+### Next human-dependent work
+
+- [ ] Supply two separately performed demonstrations of the Banana Panic task,
+  or explicitly revise the same-procedure Gate A protocol.
+- [ ] Human-review each transcript and every proposed blocker.
+- [ ] Obtain two genuine blocker → clarification → bounded repair → fresh
+  unblocked cycles for Gate A to remain passable.
+- [ ] Complete final human reliability review and record Gate A pass/fail.
+
 ## 0. Governance and workspace
 
 - [x] Git repository initialized.
@@ -41,43 +104,136 @@ Legend:
 - [x] Raw teacher context excluded from probe prompt by construction.
 - [x] Extraction → probe → clarification → repair → reprobe orchestration.
 - [x] CLI entry point and ignored per-run artifacts.
+- [x] Resumable human checkpoint without repeating extraction or initial probe.
+- [x] Per-call model and token usage persisted without prompts or credentials.
 - [x] Real-demonstration JSON template.
 - [x] Gate A protocol and human-review criteria documented.
+- [x] Voiced-video, silent-video, audio-only, and still-image capture policy documented.
+- [x] Apply the original closed loop as a standing implementation-alignment filter.
+- [x] Probe local video and extract representative frames plus conditional audio.
+- [x] Produce a teacher-only media draft with one Lite-model call.
+- [x] Require human transcript approval before emitting canonical `TeacherDemo`.
+- [x] Dry-run the real silent source through local media extraction without a model call.
+- [x] Add explicit non-blocking improvements to the probe contract.
+- [x] Add immutable genuine/false-blocker human review artifacts.
+- [x] Make procedure status and timestamps application-owned after extraction.
 
 ### Real validation — **gate**
 
-- [ ] Select one real, safe, three-step physical task.
-- [ ] Record or directly observe a real expert demonstration.
-- [ ] Transcribe actions, narration, checks, and constraints without improving vague language.
-- [ ] Run procedure extraction with `gemini-3.5-flash`.
-- [ ] Run the blinded probe using only the learner artifact.
-- [ ] Confirm the initial blocker is non-trivial and execution-relevant.
+Current status: **active but waiting for human demonstrations; incomplete**.
+Demonstration 1 was a valid negative result. Gate A has neither passed nor
+failed, and two separately performed demonstrations of the same task remain.
+
+- [x] Select one real, safe, 3–5 step physical task.
+- [x] Select `Banana Panic` branded-paint mixing as the candidate task.
+- [x] Confirm acrylic paint with a simple protective-glove setup.
+- [x] Verify, locally inspect, and sample the ignored silent source-video file.
+- [x] Save the human-approved factual transcript for candidate demonstration 1.
+- [x] Exclude unobserved ratio, pigment chemistry, angle, and repeatability claims.
+- [x] Resolve demonstration 1 material safety before any model experiment.
+- [x] Record or directly observe real expert demonstration 1.
+- [x] Human-verify demonstration 1 actions, silence, checks, and constraints without improving vague language.
+- [x] Run procedure extraction with `gemini-3.5-flash-lite` for demonstration 1.
+- [x] Run the blinded probe using only the learner artifact for demonstration 1.
+- [x] Human-assess the proposed blocker and reject it when it is not execution-relevant.
 - [ ] Capture exactly one targeted teacher clarification.
 - [ ] Confirm the repair contains only teacher-supplied information.
 - [ ] Run a fresh blinded probe against the repaired artifact.
 - [ ] Confirm blocked → unblocked for the correct reason.
-- [ ] Record model, calls, tokens, and estimated cost in the local ledger.
+- [x] Record model, calls, tokens, and actual billed cost when available.
 - [ ] Repeat across at least three demonstrations.
-- [ ] Record failures, false blockers, and cases where no blocker is found.
+- [x] Record failures, false blockers, and cases where no blocker is found.
 - [ ] **Gate A pass:** mechanism succeeds reliably enough to justify Gate B.
+
+#### Demonstration 1 — `Banana Panic` acrylic mixing
+
+- [x] Human-confirm the silent visual transcript and acrylic/glove safety boundary.
+- [x] Extract the three-step learner procedure with `gemini-3.5-flash-lite`.
+- [x] Run a `gemini-3.6-flash` probe using only the learner artifact.
+- [x] Preserve the blindness boundary in saved run `27ec5619ec7c`.
+- [x] Record 2 calls and 2,757 tokens; actual billed cost remains unreconciled.
+- [x] Human-reject the missing-quantity complaint as a false blocker.
+- [x] Record that exact ratios are a useful precision improvement, not required for execution.
+- [x] End the run without asking the proposed clarification or forcing a repair.
+- [x] Record the run as a non-success with no invented criteria or residual repair claims.
+- [x] Run the approved media-derived artifact through extraction and a fresh blinded probe.
+- [x] Preserve the blindness boundary in saved run `9058f5b2938c`.
+- [x] Human-reject the repeated exact-quantity complaint as a false blocker.
+- [x] Close the run through immutable blocker review without clarification or repair.
+- [x] Separate non-blocking improvements from execution blockers in the probe schema.
+- [x] Require a genuine human blocker review before clarification, repair, or reprobe.
+- [x] Re-run the calibrated probe and classify missing ratios as non-blocking.
+- [x] Record the unblocked result honestly as no genuine blocker/no repair opportunity.
+- [x] Force newly extracted procedure status and timestamps to application-owned values.
+
+#### Teacher-media ingestion validation
+
+- [x] Send exactly nine approved sampled frames to `gemini-3.5-flash-lite` with no audio.
+- [x] Preserve the teacher-silence boundary in the generated draft.
+- [x] Record 1 call and 11,116 tokens; actual billed cost remains unreconciled.
+- [x] Human-review the draft and identify missed white-base and maroon-addition events.
+- [x] Replace summary-first analysis with a frame-complete two-pass observation contract.
+- [x] Reject model output that omits or reorders a supplied frame observation.
+- [x] Rerun the approved source with the stricter observer after fresh call approval.
+- [x] Recover the white transfer and preserve the unexplained transition as uncertainty.
+- [x] Record the residual lavender/maroon miss as a sampling limitation, not a model fact.
+- [x] Add duration-aware bounded sampling for rapid offline demonstrations.
+- [x] Validate the strict observer with 18 frames from the genuine silent source.
+- [x] Capture white, lavender, maroon, mixing, and final-swatch events without invented speech.
+- [x] Record the 18-frame call and 23,351 tokens; actual billed cost remains unreconciled.
+- [ ] Add true event-triggered capture in the teacher browser experience.
+- [x] Obtain teacher approval or correction of the factual transcript.
+- [x] Emit `approved-demo.json`; do not pass the unapproved media draft downstream.
+
+### Additional use-case validation — beginner wood selection
+
+- [x] Classify as a separate decision-guide use case, not Banana Panic demonstration 2.
+- [x] Probe 35.97-second vertical video and confirm its audio stream locally.
+- [x] Extract 18 representative frames, a labeled contact sheet, and WAV locally.
+- [x] Obtain a verbatim transcript through consented spoken-media handling.
+- [x] Merge spoken guidance with 18 visible wood/carving observations for human review.
+- [x] Record 1 call and 23,857 tokens; leave actual monetary cost unknown.
+- [x] Require voiced decision drafts to preserve comparisons, recommendations, and counterexamples.
+- [x] Human-approve or correct the full spoken factual record.
+- [x] Emit a canonical wood-selection `TeacherDemo` without raw-media provenance.
+- [x] Validate wood selection as an executable one-step decision guide with an unblocked probe.
+- [x] Exclude it from the original Gate A count because it is not the same 3–5-step procedure.
+- [x] Record 2 calls and 1,847 tokens; leave actual monetary cost unknown.
 
 ## 2. Decision Gate B — visual checkpoint
 
+Current status: local preparation only; Gate A evidence remains incomplete.
+
 ### Dataset and protocol
 
-- [ ] Select one demo-critical visual checkpoint from a Gate A procedure.
-- [ ] Define observable `not_ready`, `ready`, and `incorrect_or_overshot` states.
+- [x] Select uniform mixed paint before the final swatch as the candidate checkpoint.
+- [x] Define observable `not_ready`, `ready`, and `incorrect_or_overshot` states.
 - [ ] Capture multiple real images for every state.
 - [ ] Include modest lighting, angle, distance, and background variation.
 - [ ] Separate calibration examples from held-out evaluation examples.
 - [ ] Remove faces, personal information, and unnecessary background details.
 - [ ] Define human-confirmation-only handling for touch, smell, taste, or uncertain cues.
+- [x] Define retry for poor image quality and human confirmation for uncertain visual match.
+- [ ] Capture and human-label the real image dataset.
+- [ ] Freeze teacher references and calibration/held-out manifests.
+- [x] Inspect source-video metadata locally and preserve its SHA-256 provenance.
+- [x] Extract an 18-frame 1-fps sequence and labeled early/middle/late contact sheet.
+- [x] Extract and inspect the audio stream without running unnecessary ASR.
+- [x] Record teacher speech as absent while preserving non-speech audio separately.
+- [x] Identify candidate `not_ready` and `ready` calibration frames.
+- [x] Human-approve four `not_ready` and three `ready` candidate frame labels.
+- [x] Freeze three initial ready references in a calibration-only manifest.
+- [ ] Capture independent `incorrect_or_overshot` examples; none exist in this clip.
+- [ ] Capture independent held-out examples; sequential frames from one clip do not qualify.
 
 ### Evaluation — **gate**
 
 - [x] Implement typed checkpoint-classification output.
 - [x] Include confidence and `needs_human_confirmation` state.
 - [x] Prevent auto-advance below the agreed confidence threshold.
+- [x] Add an explicit predicted visual-state label to checkpoint evaluation.
+- [x] Compare the learner image with up to three actual teacher reference images.
+- [x] Add a local Gate B metrics runner with deterministic confusion, precision, recall, abstention, and false-advance calculations.
 - [ ] Run all held-out images through the intended Gemini path.
 - [ ] Compute per-class precision, recall, confusion matrix, and abstention rate.
 - [ ] Test bad-angle and poor-light recovery behavior.
@@ -110,7 +266,7 @@ Legend:
 - [x] Add append-only correction model with `supersedes` relationship.
 - [x] Add learner-session and learner-step-state models.
 - [x] Add intervention, abstention, and human-confirmation events.
-- [ ] Add audit-event envelope with schema version.
+- [x] Add application-safe audit-event and ADK run envelopes.
 - [ ] Define forward-compatible schema migration policy.
 - [x] Define canonical state invariants and validation errors.
 - [ ] Define deletion/retention semantics for procedures and evidence.
@@ -118,6 +274,10 @@ Legend:
 ## 5. Teaching Partner
 
 - [x] Accept teacher transcript and approved snapshots.
+- [x] Ingest bounded silent, spoken, or uncertain teacher video locally.
+- [x] Produce timestamped visual and verbatim-speech event drafts.
+- [x] Reject invented teacher speech for human-declared silent video.
+- [x] Require human draft approval before learner-procedure extraction.
 - [x] Extract ordered learner-facing actions.
 - [x] Preserve uncertainty instead of inventing criteria.
 - [ ] Generate candidate gaps from missing quantities, cues, prerequisites, and exceptions.
@@ -139,10 +299,10 @@ Legend:
 - [x] Report blocker type, severity, step, missing information, and assumptions.
 - [x] Prefer the highest-value execution blocker over stylistic criticism.
 - [x] Detect unusable exceptions and missing prerequisites.
-- [ ] Distinguish blocker, warning, and optional improvement.
+- [x] Distinguish execution blockers from non-blocking optional improvements.
 - [x] Reject blockers that rely on hidden teacher context.
 - [ ] Add bounded retry for invalid structured output.
-- [ ] Add low-value blocker rejection/human review path.
+- [x] Add low-value blocker rejection/human review path across CLI, service, API, and browser.
 - [x] Store probe run provenance and before/after linkage.
 
 ## 7. Learner Coach
@@ -169,7 +329,7 @@ Legend:
 - [x] Add probe-run and repair endpoints.
 - [x] Add evidence upload URL or server-upload endpoint.
 - [x] Add learner-session and checkpoint-evaluation endpoints.
-- [ ] Add audit/event query endpoint for demo visibility.
+- [x] Add read-only audit/evidence query endpoint for demo visibility.
 - [x] Add request validation limits and media size/type checks.
 - [ ] Add CORS policy for the exact frontend origin.
 - [ ] Add API authentication/authorization decision.
@@ -180,21 +340,25 @@ Legend:
 
 ### Foundation
 
-- [ ] Initialize React, Vite, and TypeScript.
-- [ ] Add Tailwind and a small documented design system.
-- [ ] Add routing, API client, loading/error states, and accessible primitives.
-- [ ] Define responsive desktop/tablet layout for the demo.
+- [x] Deliberately extend the FastAPI HTML/CSS/JS client instead of adding React/Vite.
+- [x] Add a cohesive responsive visual system, role navigation, status regions, and focus styles.
+- [x] Add shared API/error handling and loading/disabled operation states.
+- [x] Define responsive desktop/tablet/mobile layout for the demo.
 
 ### Teacher experience
 
-- [ ] Start/continue teacher session.
-- [x] Capture narration/transcript and event-driven snapshots.
-- [ ] Review extracted procedure steps.
-- [ ] Display ranked candidate gaps.
+- [x] Start/continue teacher session.
+- [x] Accept teacher-entered narration/transcript and event-driven snapshots.
+- [x] Ingest local teacher video and route voiced versus silent demonstrations.
+- [x] Produce human-reviewable, time-linked speech and visual event tracks.
+- [x] Require factual-record approval before procedure extraction.
+- [x] Review extracted procedure steps.
+- [x] Display blocker severity and optional improvements from the blind probe.
 - [x] Show blinded-probe status and blocker evidence.
+- [x] Require immutable genuine/false-blocker review before enabling clarification.
 - [x] Capture one teacher clarification.
 - [x] Show exact before/after procedure diff.
-- [ ] Approve the repaired learner artifact.
+- [x] Approve the exact tested learner artifact before learner sessions.
 
 ### Learner experience
 
@@ -204,6 +368,7 @@ Legend:
 - [x] Show advance/block/retry/human-confirmation result.
 - [x] Display teacher-derived corrective guidance.
 - [x] Show progress without exposing hidden teacher context.
+- [x] Resume an interrupted learner session from its saved ID.
 
 ## 10. Persistence and evidence
 
@@ -251,6 +416,7 @@ Legend:
 - [ ] Add automated secret scanning to local checks/CI.
 - [ ] Ensure logs redact authorization headers, keys, tokens, and raw secrets.
 - [ ] Define image/transcript consent language.
+- [ ] Define raw audio/video consent, retention, and deletion language.
 - [ ] Define evidence retention and user deletion workflow.
 - [ ] Strip EXIF/location metadata where appropriate.
 - [x] Block public bucket access.
@@ -264,8 +430,8 @@ Legend:
 ## 13. Observability and cost control
 
 - [ ] Structured JSON logs with request/run/session IDs.
-- [ ] Log model name, latency, token usage, and status without sensitive prompts.
-- [x] Record Gemini call counts and estimated cost per experiment.
+- [x] Record model name, token usage when available, role, tool status, and run/session IDs without prompts.
+- [x] Record Gemini call counts and tokens per experiment; reconcile actual cost when available.
 - [ ] Record Cloud Run revision, image digest, and deployment time.
 - [ ] Add error-rate, latency, and model-failure dashboards or saved queries.
 - [ ] Add alerts for repeated model failures and Cloud Run instance saturation.
@@ -285,14 +451,14 @@ Legend:
 - [x] Repair selects the intended highest-severity blocker.
 - [x] Empty/unsafe clarification is rejected.
 - [x] Learner projection excludes every private field.
-- [ ] Cost calculation and token accounting tests.
+- [ ] Actual-billing reconciliation and token-accounting tests.
 
 ### Model contract and prompt tests
 
 - [x] Structured-output parsing against representative Gemini responses.
 - [ ] Invalid JSON/partial response retry and terminal failure tests.
 - [ ] Prompt snapshot tests for extraction, probe, repair, and checkpoint evaluation.
-- [ ] Blindness sentinel tests across every probe entry point.
+- [x] Blindness sentinel tests across direct and ADK probe entry points.
 - [ ] Prompt-injection resistance cases.
 - [ ] No invented completion-condition evaluation set.
 - [ ] Low-value/false blocker benchmark.
@@ -308,12 +474,13 @@ Legend:
 
 ### API tests
 
-- [ ] Health/readiness endpoint tests.
-- [ ] Request validation, auth, CORS, and error-envelope tests.
+- [x] Health/readiness/version endpoint tests.
+- [x] Request validation and structured error-envelope tests.
 - [x] Teacher → probe → repair API integration test.
 - [x] Learner checkpoint and intervention API integration test.
 - [ ] Idempotency and concurrent update tests.
 - [x] Media upload type/size/security tests.
+- [x] Factual-approval, resume, learner-release, and judge-evidence API tests.
 
 ### Frontend tests
 
@@ -327,6 +494,7 @@ Legend:
 
 - [x] Local unedited teacher → learner happy path.
 - [x] Deliberate learner-error recovery path.
+- [x] Seeded zero-model-call browser rehearsal and evidence-view smoke test.
 - [ ] Bad camera angle and human-confirmation path.
 - [ ] Deployed Cloud Run health and full smoke test.
 - [ ] Service-account permissions allow required actions and deny unrelated ones.
@@ -368,7 +536,7 @@ Legend:
 - [ ] Verify demo project budget and current spend immediately beforehand.
 - [ ] Final privacy/safety review.
 - [ ] Final README reproduction test.
-- [ ] Architecture diagram complete.
+- [x] Architecture diagram complete.
 - [ ] Devpost description, claims, and limitations match actual evidence.
 - [ ] No unvalidated capability claim in presentation or submission.
 
