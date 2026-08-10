@@ -12,7 +12,7 @@ from byfeel.checkpoint import GeminiCheckpointEvaluator
 from byfeel.evidence import CloudStorageEvidenceStore
 from byfeel.firestore_repository import FirestoreRepository
 from byfeel.gemini import ByFeelModelRouter, GeminiStructuredClient
-from byfeel.models import LearnerObservation, ProbeStatus, TeacherDemo
+from byfeel.models import BlockerReviewDecision, LearnerObservation, ProbeStatus, TeacherDemo
 from byfeel.service import ByFeelService
 from dotenv import load_dotenv
 
@@ -85,6 +85,12 @@ def main() -> int:
         print("result=inconclusive_initial_probe")
         print_usage(client)
         return 1
+
+    service.review_blocker(
+        taught.probe_run.probe_run_id,
+        BlockerReviewDecision.GENUINE,
+        "The learner cannot determine when the crease is complete without the missing cue.",
+    )
 
     evidence = evidence_store.put(ONE_PIXEL_PNG, content_type="image/png", source="test")
     repaired = service.clarify(

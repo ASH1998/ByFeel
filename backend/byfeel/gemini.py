@@ -38,9 +38,42 @@ class GeminiStructuredClient:
         content_type: str,
         schema: type[SchemaT],
     ) -> SchemaT:
+        return self.generate_with_images(
+            system=system,
+            prompt=prompt,
+            images=[(image, content_type)],
+            schema=schema,
+        )
+
+    def generate_with_images(
+        self,
+        *,
+        system: str,
+        prompt: str,
+        images: list[tuple[bytes, str]],
+        schema: type[SchemaT],
+    ) -> SchemaT:
+        return self.generate_with_media(system=system, prompt=prompt, media=images, schema=schema)
+
+    def generate_with_media(
+        self,
+        *,
+        system: str,
+        prompt: str,
+        media: list[tuple[bytes, str]],
+        schema: type[SchemaT],
+    ) -> SchemaT:
+        if not media:
+            raise ValueError("at least one media item is required")
         return self._generate(
             system=system,
-            contents=[prompt, types.Part.from_bytes(data=image, mime_type=content_type)],
+            contents=[
+                prompt,
+                *[
+                    types.Part.from_bytes(data=data, mime_type=content_type)
+                    for data, content_type in media
+                ],
+            ],
             schema=schema,
         )
 
