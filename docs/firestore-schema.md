@@ -31,3 +31,21 @@ application writes.
   implementation task.
 - Add indexes only when an implemented query requires them and after direct cloud
   approval.
+
+## Local MVP test-data boundary
+
+The implemented cloud adapter intentionally does not write the eventual
+production paths above. Local smoke/application data is hard-scoped beneath:
+
+```text
+byfeel_test_runs/{namespace}/procedures/{procedure_id}
+byfeel_test_runs/{namespace}/probe_runs/{probe_run_id}
+byfeel_test_runs/{namespace}/corrections/{correction_id}
+byfeel_test_runs/{namespace}/learner_sessions/{session_id}
+byfeel_test_runs/{namespace}/learner_events/{event_id}
+```
+
+The adapter reads the small namespace locally instead of issuing compound
+queries, so it requires no new Firestore indexes. It exposes no database,
+collection, document, or index deletion operation. Canonical production paths
+and transaction boundaries remain a later-phase decision.
