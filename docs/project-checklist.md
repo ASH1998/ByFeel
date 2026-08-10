@@ -75,9 +75,9 @@ Legend:
 
 ### Evaluation — **gate**
 
-- [ ] Implement typed checkpoint-classification output.
-- [ ] Include confidence and `needs_human_confirmation` state.
-- [ ] Prevent auto-advance below the agreed confidence threshold.
+- [x] Implement typed checkpoint-classification output.
+- [x] Include confidence and `needs_human_confirmation` state.
+- [x] Prevent auto-advance below the agreed confidence threshold.
 - [ ] Run all held-out images through the intended Gemini path.
 - [ ] Compute per-class precision, recall, confusion matrix, and abstention rate.
 - [ ] Test bad-angle and poor-light recovery behavior.
@@ -103,30 +103,30 @@ Legend:
 ## 4. Canonical domain models
 
 - [x] Procedure, step, gap, probe, repair, and manifest models exist for Gate A.
-- [ ] Add stable IDs and UTC timestamps to all persistent entities.
-- [ ] Add checkpoint model with visual/temporal/verbal/measurable modality.
-- [ ] Add positive and negative checkpoint examples.
-- [ ] Add evidence-reference model with provenance and media metadata.
-- [ ] Add append-only correction model with `supersedes` relationship.
-- [ ] Add learner-session and learner-step-state models.
-- [ ] Add intervention, abstention, and human-confirmation events.
+- [x] Add stable IDs and UTC timestamps to all persistent entities.
+- [x] Add checkpoint model with visual/temporal/verbal/measurable modality.
+- [x] Add positive and negative checkpoint examples.
+- [x] Add evidence-reference model with provenance and media metadata.
+- [x] Add append-only correction model with `supersedes` relationship.
+- [x] Add learner-session and learner-step-state models.
+- [x] Add intervention, abstention, and human-confirmation events.
 - [ ] Add audit-event envelope with schema version.
 - [ ] Define forward-compatible schema migration policy.
-- [ ] Define canonical state invariants and validation errors.
+- [x] Define canonical state invariants and validation errors.
 - [ ] Define deletion/retention semantics for procedures and evidence.
 
 ## 5. Teaching Partner
 
-- [ ] Accept teacher transcript and approved snapshots.
-- [ ] Extract ordered learner-facing actions.
-- [ ] Preserve uncertainty instead of inventing criteria.
+- [x] Accept teacher transcript and approved snapshots.
+- [x] Extract ordered learner-facing actions.
+- [x] Preserve uncertainty instead of inventing criteria.
 - [ ] Generate candidate gaps from missing quantities, cues, prerequisites, and exceptions.
 - [ ] Rank gaps by execution impact and confidence.
-- [ ] Ask at most one high-value clarification at a time.
+- [x] Ask at most one high-value clarification at a time.
 - [ ] Explain why the clarification is needed.
-- [ ] Attach approved evidence to the relevant checkpoint.
-- [ ] Mutate canonical procedure state only through validated operations.
-- [ ] Preserve append-only correction history.
+- [x] Attach approved evidence to the relevant checkpoint.
+- [x] Mutate canonical procedure state only through validated operations.
+- [x] Preserve append-only correction history.
 - [ ] Detect contradictions with prior teacher rules.
 - [ ] Require teacher confirmation for destructive or broad procedure changes.
 
@@ -134,43 +134,43 @@ Legend:
 
 - [x] Probe receives a learner-only projection in Gate A code.
 - [x] Probe cannot mutate canonical state.
-- [ ] Enforce permission boundary outside prompt text as an application interface.
-- [ ] Version and hash the exact learner artifact sent to each probe.
-- [ ] Report blocker type, severity, step, missing information, and assumptions.
-- [ ] Prefer the highest-value execution blocker over stylistic criticism.
-- [ ] Detect unusable exceptions and missing prerequisites.
+- [x] Enforce permission boundary outside prompt text as an application interface.
+- [x] Version and hash the exact learner artifact sent to each probe.
+- [x] Report blocker type, severity, step, missing information, and assumptions.
+- [x] Prefer the highest-value execution blocker over stylistic criticism.
+- [x] Detect unusable exceptions and missing prerequisites.
 - [ ] Distinguish blocker, warning, and optional improvement.
-- [ ] Reject blockers that rely on hidden teacher context.
+- [x] Reject blockers that rely on hidden teacher context.
 - [ ] Add bounded retry for invalid structured output.
 - [ ] Add low-value blocker rejection/human review path.
-- [ ] Store probe run provenance and before/after linkage.
+- [x] Store probe run provenance and before/after linkage.
 
 ## 7. Learner Coach
 
-- [ ] Start a fresh learner session from an approved procedure version.
-- [ ] Present one step and its completion conditions at a time.
-- [ ] Request snapshots only at decision-relevant moments.
-- [ ] Track current step, attempts, checkpoint state, and interventions.
-- [ ] Decide `advance`, `block`, `retry_snapshot`, or `human_confirmation`.
-- [ ] Explain interventions in learner-friendly language.
-- [ ] Cite the teacher-derived checkpoint or correction used.
-- [ ] Avoid claiming unavailable touch, smell, or taste sensing.
+- [x] Start a fresh learner session from an approved procedure version.
+- [x] Present one step and its completion conditions at a time.
+- [x] Request snapshots only at decision-relevant moments.
+- [x] Track current step, attempts, checkpoint state, and interventions.
+- [x] Decide `advance`, `block`, `retry_snapshot`, or `human_confirmation`.
+- [x] Explain interventions in learner-friendly language.
+- [x] Cite the teacher-derived checkpoint or correction used.
+- [x] Avoid claiming unavailable touch, smell, or taste sensing.
 - [ ] Avoid unsafe instructions and stop on safety uncertainty.
-- [ ] Persist learner progress and recovery history.
+- [x] Persist learner progress and recovery history.
 - [ ] Allow learner or facilitator override with an audit event.
 
 ## 8. Backend and API
 
-- [ ] Establish FastAPI application factory.
-- [ ] Add health, readiness, and version endpoints.
-- [ ] Add structured error envelope and request IDs.
-- [ ] Add teacher-session endpoints.
-- [ ] Add procedure read/update endpoints with optimistic concurrency.
-- [ ] Add probe-run and repair endpoints.
-- [ ] Add evidence upload URL or server-upload endpoint.
-- [ ] Add learner-session and checkpoint-evaluation endpoints.
+- [x] Establish FastAPI application factory.
+- [x] Add health, readiness, and version endpoints.
+- [x] Add structured error envelope and request IDs.
+- [x] Add teacher-session endpoints.
+- [x] Add procedure read/update endpoints with optimistic concurrency.
+- [x] Add probe-run and repair endpoints.
+- [x] Add evidence upload URL or server-upload endpoint.
+- [x] Add learner-session and checkpoint-evaluation endpoints.
 - [ ] Add audit/event query endpoint for demo visibility.
-- [ ] Add request validation limits and media size/type checks.
+- [x] Add request validation limits and media size/type checks.
 - [ ] Add CORS policy for the exact frontend origin.
 - [ ] Add API authentication/authorization decision.
 - [ ] Add idempotency for retried mutations.
@@ -188,30 +188,30 @@ Legend:
 ### Teacher experience
 
 - [ ] Start/continue teacher session.
-- [ ] Capture narration/transcript and event-driven snapshots.
+- [x] Capture narration/transcript and event-driven snapshots.
 - [ ] Review extracted procedure steps.
 - [ ] Display ranked candidate gaps.
-- [ ] Show blinded-probe status and blocker evidence.
-- [ ] Capture one teacher clarification.
-- [ ] Show exact before/after procedure diff.
+- [x] Show blinded-probe status and blocker evidence.
+- [x] Capture one teacher clarification.
+- [x] Show exact before/after procedure diff.
 - [ ] Approve the repaired learner artifact.
 
 ### Learner experience
 
-- [ ] Start fresh learner session.
-- [ ] Display current action and observable completion conditions.
-- [ ] Capture checkpoint image.
-- [ ] Show advance/block/retry/human-confirmation result.
-- [ ] Display teacher-derived corrective guidance.
-- [ ] Show progress without exposing hidden teacher context.
+- [x] Start fresh learner session.
+- [x] Display current action and observable completion conditions.
+- [x] Capture checkpoint image.
+- [x] Show advance/block/retry/human-confirmation result.
+- [x] Display teacher-derived corrective guidance.
+- [x] Show progress without exposing hidden teacher context.
 
 ## 10. Persistence and evidence
 
 - [x] Obtain direct approval for Firestore creation.
 - [x] Create Firestore Standard Native `(default)` in the approved region.
 - [x] Record creation event in ledger by date and Firestore service.
-- [ ] Implement Firestore repositories behind interfaces.
-- [ ] Implement local/in-memory repositories for tests.
+- [x] Implement Firestore repositories behind interfaces.
+- [x] Implement local/in-memory repositories for tests.
 - [x] Define initial document paths; finalize transaction boundaries during repository implementation.
 - [ ] Add required Firestore indexes only after explicit approval.
 - [x] Obtain direct approval for Cloud Storage bucket creation.
@@ -219,7 +219,7 @@ Legend:
 - [ ] Configure approved retention/lifecycle policy.
 - [x] Record bucket event in ledger by date and Storage service.
 - [ ] Validate content type, extension, dimensions, and object size.
-- [ ] Store checksums and provenance for every evidence object.
+- [x] Store checksums and provenance for every evidence object.
 - [ ] Ensure deleted procedures do not silently orphan sensitive evidence.
 
 ## 11. Cloud deployment
@@ -265,7 +265,7 @@ Legend:
 
 - [ ] Structured JSON logs with request/run/session IDs.
 - [ ] Log model name, latency, token usage, and status without sensitive prompts.
-- [ ] Record Gemini call counts and estimated cost per experiment.
+- [x] Record Gemini call counts and estimated cost per experiment.
 - [ ] Record Cloud Run revision, image digest, and deployment time.
 - [ ] Add error-rate, latency, and model-failure dashboards or saved queries.
 - [ ] Add alerts for repeated model failures and Cloud Run instance saturation.
@@ -280,16 +280,16 @@ Legend:
 
 - [x] Raw teacher context does not reach the probe prompt.
 - [x] Fake blocked → repair → unblocked loop passes.
-- [ ] Schema validation rejects duplicate step order/IDs and invalid confidence.
-- [ ] Probe status/blocker invariants cover all edge cases.
-- [ ] Repair selects the intended highest-severity blocker.
-- [ ] Empty/unsafe clarification is rejected.
-- [ ] Learner projection excludes every private field.
+- [x] Schema validation rejects duplicate step order/IDs and invalid confidence.
+- [x] Probe status/blocker invariants cover all edge cases.
+- [x] Repair selects the intended highest-severity blocker.
+- [x] Empty/unsafe clarification is rejected.
+- [x] Learner projection excludes every private field.
 - [ ] Cost calculation and token accounting tests.
 
 ### Model contract and prompt tests
 
-- [ ] Structured-output parsing against representative Gemini responses.
+- [x] Structured-output parsing against representative Gemini responses.
 - [ ] Invalid JSON/partial response retry and terminal failure tests.
 - [ ] Prompt snapshot tests for extraction, probe, repair, and checkpoint evaluation.
 - [ ] Blindness sentinel tests across every probe entry point.
@@ -299,9 +299,9 @@ Legend:
 
 ### Repository and persistence tests
 
-- [ ] In-memory repository CRUD and concurrency tests.
+- [x] In-memory repository CRUD and concurrency tests.
 - [ ] Firestore emulator integration tests before live Firestore use.
-- [ ] Correction history is append-only.
+- [x] Correction history is append-only.
 - [ ] Procedure mutation and probe run are linked atomically.
 - [ ] Evidence references reject missing or mismatched objects.
 - [ ] Retention and deletion workflows preserve audit requirements.
@@ -310,10 +310,10 @@ Legend:
 
 - [ ] Health/readiness endpoint tests.
 - [ ] Request validation, auth, CORS, and error-envelope tests.
-- [ ] Teacher → probe → repair API integration test.
-- [ ] Learner checkpoint and intervention API integration test.
+- [x] Teacher → probe → repair API integration test.
+- [x] Learner checkpoint and intervention API integration test.
 - [ ] Idempotency and concurrent update tests.
-- [ ] Media upload type/size/security tests.
+- [x] Media upload type/size/security tests.
 
 ### Frontend tests
 
@@ -325,8 +325,8 @@ Legend:
 
 ### End-to-end and cloud tests
 
-- [ ] Local unedited teacher → learner happy path.
-- [ ] Deliberate learner-error recovery path.
+- [x] Local unedited teacher → learner happy path.
+- [x] Deliberate learner-error recovery path.
 - [ ] Bad camera angle and human-confirmation path.
 - [ ] Deployed Cloud Run health and full smoke test.
 - [ ] Service-account permissions allow required actions and deny unrelated ones.
@@ -350,11 +350,11 @@ Legend:
 - [ ] Define novice-probe precision/utility rubric.
 - [ ] Measure blockers accepted, rejected, and missed.
 - [ ] Measure checkpoint accuracy and abstention.
-- [ ] Measure correction persistence across fresh sessions.
-- [ ] Run blindness test with planted private-context sentinel.
+- [x] Measure correction persistence across fresh sessions.
+- [x] Run blindness test with planted private-context sentinel.
 - [ ] Run static-procedure baseline versus ByFeel transfer.
 - [ ] Record learner completion, correction, and intervention outcomes.
-- [ ] Document negative results and kill/pivot evidence honestly.
+- [x] Document negative results and kill/pivot evidence honestly.
 
 ## 16. Demo and release readiness
 
@@ -363,7 +363,7 @@ Legend:
 - [ ] Rehearse four-minute narrative and call budget.
 - [ ] Show expert demo, blocker, targeted question, diff, learner error, and recovery.
 - [ ] Show architecture, cloud resources, and visible logs without exposing secrets.
-- [ ] Run one reliable unedited end-to-end demo.
+- [x] Run one reliable unedited end-to-end demo.
 - [ ] Prepare backup recording and static artifacts.
 - [ ] Verify demo project budget and current spend immediately beforehand.
 - [ ] Final privacy/safety review.

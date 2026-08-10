@@ -1,8 +1,9 @@
 # ByFeel
 
-This repository is the workspace for the ByFeel experiments. It currently
-contains the local Decision Gate A mechanism test; the application and UI have
-not been implemented.
+ByFeel finds what an expert forgot to explain. The local MVP extracts a
+learner-facing procedure from a teacher demonstration, tests it through a
+learner-only blinded probe, repairs one blocker from a teacher clarification,
+and applies the repaired criterion at a learner checkpoint.
 
 ## Prerequisites
 
@@ -51,9 +52,79 @@ because it can contain raw demonstrations.
 
 See `docs/decision-gate-a.md` for the experiment contract and success criteria.
 
+## Local MVP web app
+
+The default app uses in-memory persistence while calling the configured Gemini
+model. It does not deploy or mutate cloud configuration.
+
+```powershell
+uv run byfeel serve
+```
+
+Open <http://127.0.0.1:8000>. The page walks through:
+
+1. teacher demonstration and extraction;
+2. learner-only blinded probe;
+3. one targeted teacher clarification and exact before/after diff;
+4. fresh reprobe;
+5. learner checkpoint and teacher-derived guidance.
+
+Optional PNG, JPEG, and WebP snapshots are limited to 5 MiB. The API validates
+the media signature, records a SHA-256 checksum and provenance, and sends a
+learner snapshot to Gemini only at an explicit checkpoint.
+
+### Existing Firestore and evidence bucket
+
+To use only the already approved cloud resources for local test application
+data, run:
+
+```powershell
+uv run byfeel serve --cloud --test-namespace local-mvp
+```
+
+Cloud mode is hard-scoped to:
+
+- Firestore `(default)`: `byfeel_test_runs/{test-namespace}/...`
+- `gs://byfeel-evidence-775995990601`:
+  `test-data/{test-namespace}/...`
+
+The adapters contain no database/bucket/API/IAM/index/policy/deployment
+management operations and no delete methods. The current restricted identity
+can create/read/update test documents and create/read unique evidence objects,
+but cannot delete or overwrite them. Use a new namespace for independent runs
+and record material experiments in the ignored `cloud-ledger/`.
+
+## API
+
+Useful local endpoints:
+
+- `GET /health`, `GET /ready`, `GET /version`
+- `POST /api/teacher/sessions`
+- `POST /api/evidence`
+- `POST /api/procedures/{id}/clarifications`
+- `POST /api/learner/sessions`
+- `POST /api/learner/sessions/{id}/checkpoints`
+- `GET /api/learner/sessions/{id}/events`
+
+## Verification
+
+```powershell
+uv run pytest -q --basetemp=.pytest-tmp-final
+uv run ruff check .
+uv run ruff format --check .
+```
+
+Automated tests use fake model and in-memory/cloud doubles, so they make no
+Gemini or Google Cloud calls. The bounded live smoke script is intentionally
+separate because it writes authorized namespaced test data and incurs model
+usage:
+
+```powershell
+uv run python scripts/live_smoke.py --namespace your-unique-test-namespace
+```
+
 ## Repository layout
 
-- `backend/` — Python experiment code; no API yet
-- `frontend/` — web client (not yet implemented)
+- `backend/` — domain models, services, persistence adapters, FastAPI, and UI
 - `docs/` — project documentation
 - `scripts/` — development and operational scripts
