@@ -3,118 +3,231 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ByFeel — find what the expert forgot</title>
+  <title>ByFeel — teach what words leave out</title>
   <style>
-    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #101311; color: #edf6ef; }
-    body { margin: 0; background: radial-gradient(circle at top, #243b31, #101311 55%); min-height: 100vh; }
-    main { width: min(1000px, calc(100% - 32px)); margin: auto; padding: 48px 0; }
-    h1 { font-size: clamp(2.2rem, 6vw, 4.8rem); letter-spacing: -.055em; margin: 0; max-width: 780px; }
-    .lede { color: #abc4b3; font-size: 1.1rem; max-width: 650px; }
-    .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 30px 0; }
-    .flow span { border: 1px solid #385246; border-radius: 999px; padding: 8px 10px; text-align: center; color: #b9d7c4; font-size: .8rem; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    section { background: rgba(23, 31, 27, .94); border: 1px solid #31483d; border-radius: 18px; padding: 22px; box-shadow: 0 18px 60px #0005; }
-    section.full { grid-column: 1 / -1; }
-    label { display: block; color: #b8c9be; margin: 14px 0 6px; }
-    input, textarea { box-sizing: border-box; width: 100%; border: 1px solid #496256; border-radius: 10px; padding: 11px; background: #0d120f; color: #edf6ef; }
-    textarea { min-height: 110px; resize: vertical; }
-    button { margin-top: 14px; border: 0; border-radius: 999px; padding: 11px 18px; background: #95f5b8; color: #102117; font-weight: 750; cursor: pointer; }
-    button:disabled { opacity: .45; cursor: wait; }
-    pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #c6d7cb; background: #0c110e; padding: 14px; border-radius: 10px; min-height: 40px; }
-    .status { color: #95f5b8; min-height: 1.4em; }
-    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } section.full { grid-column: auto; } .flow { grid-template-columns: 1fr; } }
+    :root {
+      color-scheme: light; --ink:#17211c; --muted:#65736b; --paper:#f5f3eb;
+      --card:#fffefa; --line:#d9ddd4; --green:#174f3a; --lime:#dafa78;
+      --amber:#f3b85b; --red:#b4483f; --blue:#346b77; --shadow:0 22px 60px #19332916;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); }
+    button, input, textarea, select { font:inherit; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline:3px solid #83aef0; outline-offset:2px; }
+    .shell { min-height:100vh; display:grid; grid-template-columns:250px 1fr; }
+    aside { padding:30px 22px; background:#133c2e; color:white; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; }
+    .brand { font-weight:850; font-size:1.6rem; letter-spacing:-.05em; }
+    .brand small { display:block; margin-top:6px; font-size:.72rem; letter-spacing:.09em; text-transform:uppercase; color:#b8d2c5; }
+    nav { margin-top:42px; display:grid; gap:8px; }
+    .nav-button { border:0; border-radius:12px; padding:12px; text-align:left; color:#c9ddd3; background:transparent; cursor:pointer; }
+    .nav-button[aria-selected="true"] { color:#133c2e; background:var(--lime); font-weight:800; }
+    .boundary-note { margin-top:auto; color:#b8d2c5; font-size:.78rem; line-height:1.45; border-top:1px solid #ffffff22; padding-top:18px; }
+    main { padding:42px clamp(22px, 5vw, 70px) 80px; max-width:1300px; width:100%; }
+    .hero { display:flex; justify-content:space-between; gap:30px; align-items:flex-end; margin-bottom:34px; }
+    h1 { margin:0; max-width:760px; font-size:clamp(2.4rem, 5vw, 5.4rem); letter-spacing:-.065em; line-height:.92; }
+    .hero p { max-width:420px; color:var(--muted); line-height:1.55; }
+    .mode { display:none; }
+    .mode.active { display:block; animation:fade .18s ease-out; }
+    @keyframes fade { from { opacity:0; transform:translateY(6px); } }
+    .mode-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+    .eyebrow { color:var(--green); font-weight:850; letter-spacing:.09em; text-transform:uppercase; font-size:.74rem; }
+    h2 { margin:3px 0 0; font-size:1.7rem; letter-spacing:-.03em; }
+    h3 { margin:0 0 8px; font-size:1.04rem; }
+    .grid { display:grid; grid-template-columns:repeat(12,1fr); gap:16px; }
+    .card { grid-column:span 6; background:var(--card); border:1px solid var(--line); border-radius:20px; padding:22px; box-shadow:var(--shadow); }
+    .card.wide { grid-column:1/-1; }
+    .card.third { grid-column:span 4; }
+    .card p { color:var(--muted); line-height:1.5; }
+    label { display:block; margin:13px 0 6px; font-size:.8rem; font-weight:750; color:#46534c; }
+    input, textarea, select { width:100%; border:1px solid #cbd1c8; background:white; border-radius:11px; padding:11px 12px; color:var(--ink); }
+    textarea { min-height:112px; resize:vertical; line-height:1.45; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:16px; }
+    button { border:0; border-radius:999px; padding:10px 16px; background:var(--green); color:white; font-weight:800; cursor:pointer; }
+    button.secondary { color:var(--green); background:#e9eee9; }
+    button.danger { color:#7a281f; background:#fae2dc; }
+    button:disabled { opacity:.42; cursor:not-allowed; }
+    .status { min-height:1.35em; margin:12px 0 0; color:var(--green); font-weight:700; font-size:.86rem; }
+    .status.error { color:var(--red); }
+    .notice { padding:13px 15px; border-radius:12px; background:#edf4f0; border-left:4px solid var(--green); font-size:.88rem; line-height:1.45; }
+    .notice.warn { background:#fff2d8; border-color:var(--amber); }
+    .pill { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:white; border-radius:999px; padding:6px 10px; font-size:.76rem; font-weight:750; }
+    .pill::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--green); }
+    .pills { display:flex; flex-wrap:wrap; gap:7px; margin:12px 0; }
+    .frames { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-top:14px; }
+    figure { margin:0; border:1px solid var(--line); border-radius:13px; overflow:hidden; background:#f0f0ea; }
+    figure img { display:block; width:100%; aspect-ratio:16/10; object-fit:cover; }
+    figcaption { padding:8px; font-size:.72rem; color:var(--muted); }
+    .steps { display:grid; gap:10px; }
+    .step { padding:15px; background:#f7f7f1; border:1px solid var(--line); border-radius:14px; }
+    .step strong { color:var(--green); }
+    pre { margin:10px 0 0; max-height:360px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:#122119; color:#dbe9df; border-radius:14px; padding:16px; font:12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .decision { font-size:2rem; font-weight:900; letter-spacing:-.04em; }
+    .progress { height:9px; background:#e3e7df; border-radius:99px; overflow:hidden; margin:12px 0; }
+    .progress span { display:block; height:100%; background:var(--lime); width:0; transition:width .25s; }
+    @media (max-width:900px) { .shell{grid-template-columns:1fr} aside{position:static;height:auto;padding:18px} nav{margin:18px 0 0;grid-template-columns:repeat(3,1fr)} .boundary-note{display:none}.hero{display:block}.card,.card.third{grid-column:1/-1} }
+    @media (max-width:560px) { main{padding:28px 14px 60px}.row{grid-template-columns:1fr} nav{grid-template-columns:1fr}.hero p{font-size:.9rem} }
   </style>
 </head>
 <body>
-<main>
-  <h1>Find what the expert forgot to explain.</h1>
-  <p class="lede">Teach a bounded procedure. A blinded novice sees only the learner artifact, exposes one blocker, and turns one teacher clarification into checkpoint guidance.</p>
-  <div class="flow"><span>Teacher</span><span>Blinded probe</span><span>Clarify</span><span>Repair</span><span>Learner</span></div>
-  <div class="grid">
-    <section>
-      <h2>1. Teacher demonstration</h2>
-      <label>Title<input id="title" value="Fold a paper marker"></label>
-      <label>Domain<input id="domain" value="paper craft"></label>
-      <label>Learner goal<input id="goal" value="Make a stable folded marker"></label>
-      <label>What happened<textarea id="demo">The teacher folds the paper in half, aligns the edges, and says to press the crease until it is firm enough.</textarea></label>
-      <button id="teach">Extract and probe</button>
-      <p class="status" id="teach-status"></p>
-      <pre id="probe">The blinded probe result will appear here.</pre>
+<div class="shell">
+  <aside>
+    <div class="brand">ByFeel<small>teacher knowledge transfer</small></div>
+    <nav aria-label="Role modes">
+      <button class="nav-button" data-mode="teacher" aria-selected="true">01 · Teacher</button>
+      <button class="nav-button" data-mode="probe" aria-selected="false">02 · Blind probe</button>
+      <button class="nav-button" data-mode="learner" aria-selected="false">03 · Learner</button>
+      <button class="nav-button" data-mode="judge" aria-selected="false">04 · Evidence</button>
+    </nav>
+    <div class="boundary-note">Roles are application-enforced. The blind probe gets a fresh ADK session and only the frozen learner artifact—not teacher media, transcript, notes, or prior reasoning.</div>
+  </aside>
+  <main>
+    <header class="hero">
+      <h1>Teach the detail<br>words leave out.</h1>
+      <p>ByFeel observes a bounded expert demonstration, asks a fresh novice agent what is genuinely missing, and turns one approved answer into learner guidance.</p>
+    </header>
+
+    <section id="mode-teacher" class="mode active" aria-labelledby="teacher-heading">
+      <div class="mode-head"><div><span class="eyebrow">Teacher-only context</span><h2 id="teacher-heading">Capture → review facts → approve</h2></div><span class="pill">Teaching Partner</span></div>
+      <div class="grid">
+        <article class="card">
+          <h3>1. Start or resume a session</h3>
+          <p>Upload one bounded demonstration. Silent mode sends frames only; spoken mode includes its audio track.</p>
+          <div class="row"><label>Title<input id="title" value="Fold a paper marker"></label><label>Domain<input id="domain" value="paper craft"></label></div>
+          <label>Learner goal<input id="goal" value="Make a stable folded marker"></label>
+          <div class="row"><label>Speech mode<select id="speech-mode"><option value="silent">Silent — visual only</option><option value="spoken">Spoken — audio + visual</option><option value="unsure">Unsure — inspect audio</option></select></label><label>Teacher video<input id="teacher-video" type="file" accept="video/mp4,video/webm,video/quicktime"></label></div>
+          <div class="notice warn">Processing uses one Gemini 3.5 Flash-Lite media call. Upload is capped at 50 MiB; 9–18 frames are sampled by duration.</div>
+          <div class="actions"><button id="process-media">Create session & process video</button></div>
+          <button id="seed-demo" class="secondary">Load seeded rehearsal · 0 model calls</button>
+          <label>Resume session ID<input id="resume-id" placeholder="teacher-…"></label>
+          <button id="resume" class="secondary">Resume</button>
+          <p id="media-status" class="status" role="status"></p>
+        </article>
+
+        <article class="card">
+          <h3>2. Teacher-only factual record</h3>
+          <p>Check the sampled evidence and edit the draft for factual accuracy. Vague language stays vague until you explicitly clarify it.</p>
+          <div id="media-meta" class="pills"><span class="pill">Awaiting media</span></div>
+          <div id="frames" class="frames"></div>
+          <label>Approved factual record<textarea id="factual-record" placeholder="The factual observation draft appears after processing."></textarea></label>
+          <div class="actions"><button id="approve-facts" disabled>Approve exact factual record</button><button id="extract" disabled>Extract learner procedure</button></div>
+          <p id="facts-status" class="status" role="status"></p>
+        </article>
+
+        <article class="card wide">
+          <h3>3. Review learner-facing procedure</h3>
+          <p>This projection contains only executable steps, visible completion cues, checkpoints, risks, and open questions. Teacher media remains private.</p>
+          <div id="procedure-steps" class="steps"><div class="step">No learner procedure extracted yet.</div></div>
+        </article>
+      </div>
     </section>
-    <section>
-      <h2>2. Teacher clarification</h2>
-      <label>Answer one question<textarea id="clarification" placeholder="The fold is ready when..."></textarea></label>
-      <label>Optional approved checkpoint image<input id="teacher-image" type="file" accept="image/png,image/jpeg,image/webp"></label>
-      <button id="repair" disabled>Repair and reprobe</button>
-      <p class="status" id="repair-status"></p>
-      <pre id="diff">The before/after change will appear here.</pre>
+
+    <section id="mode-probe" class="mode" aria-labelledby="probe-heading">
+      <div class="mode-head"><div><span class="eyebrow">Fresh isolated context</span><h2 id="probe-heading">Test → classify → repair → retest</h2></div><span class="pill">Blinded Novice Probe</span></div>
+      <div class="grid">
+        <article class="card">
+          <h3>Exact artifact supplied</h3>
+          <div class="pills"><span class="pill">Learner projection only</span><span class="pill">New ADK session</span><span class="pill">Read-only tool</span></div>
+          <div class="notice">Excluded by construction: raw video, audio, factual draft, hidden notes, teacher evidence, corrections, repositories, and previous probe reasoning.</div>
+          <pre id="artifact">Extract an approved procedure to inspect its exact learner projection.</pre>
+        </article>
+        <article class="card">
+          <h3>Probe verdict</h3>
+          <div id="probe-decision" class="decision">NOT RUN</div>
+          <p id="probe-summary">A blocker is never forced. An unblocked procedure is a valid result.</p>
+          <div id="probe-details"></div>
+          <label>Immutable review reason<textarea id="review-reason" placeholder="Explain why this is a genuine blocker or optional/false precision request."></textarea></label>
+          <div class="actions"><button id="approve-blocker" disabled>Genuine blocker</button><button id="reject-blocker" class="danger" disabled>False / optional</button></div>
+          <p id="review-status" class="status" role="status"></p>
+        </article>
+        <article class="card">
+          <h3>One targeted clarification</h3>
+          <p id="teacher-question">No approved blocker is waiting.</p>
+          <label>Teacher answer — stored verbatim<textarea id="clarification" placeholder="Answer only the saved question."></textarea></label>
+          <label>Optional approved checkpoint image<input id="teacher-image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+          <button id="repair" disabled>Repair selected blocker & reprobe</button>
+          <p id="repair-status" class="status" role="status"></p>
+        </article>
+        <article class="card">
+          <h3>Bounded procedure diff</h3>
+          <pre id="diff">The exact before/after step mutation appears here.</pre>
+          <button id="approve-learner" disabled>Approve tested artifact for learners</button>
+          <p id="approval-status" class="status" role="status"></p>
+        </article>
+      </div>
     </section>
-    <section class="full">
-      <h2>3. Learner checkpoint</h2>
-      <button id="start" disabled>Start fresh learner</button>
-      <label>Describe the learner's observable state<textarea id="observation" placeholder="The paper springs open when I remove my hand."></textarea></label>
-      <label>Optional learner snapshot<input id="learner-image" type="file" accept="image/png,image/jpeg,image/webp"></label>
-      <button id="check" disabled>Check learner state</button>
-      <p class="status" id="learner-status"></p>
-      <pre id="guidance">Checkpoint guidance will appear here.</pre>
+
+    <section id="mode-learner" class="mode" aria-labelledby="learner-heading">
+      <div class="mode-head"><div><span class="eyebrow">Learner-facing context only</span><h2 id="learner-heading">One action. One observable check.</h2></div><span class="pill">Learner Coach</span></div>
+      <div class="grid">
+        <article class="card third"><h3>Approved procedure</h3><p id="learner-procedure">No learner-ready procedure yet.</p><button id="start" disabled>Start fresh learner session</button><label>Resume learner session ID<input id="learner-resume-id" placeholder="learner-…"></label><button id="resume-learner" class="secondary">Resume learner</button><p id="learner-status" class="status" role="status"></p></article>
+        <article class="card third"><h3>Current step</h3><div class="progress"><span id="progress-bar"></span></div><div id="current-step" class="step">Start a session to reveal the first approved step.</div></article>
+        <article class="card third"><h3>Check my state</h3><label>What can you observe?<textarea id="observation" placeholder="Describe only the current result."></textarea></label><label>Optional snapshot<input id="learner-image" type="file" accept="image/png,image/jpeg,image/webp"></label><button id="check" disabled>Evaluate checkpoint</button></article>
+        <article class="card wide"><span class="eyebrow">Teacher-derived intervention</span><div id="guidance" class="decision">WAITING</div><p id="guidance-copy">The coach can advance, block with a correction, request another view, or require human confirmation for unavailable senses.</p></article>
+      </div>
     </section>
-  </div>
-</main>
+
+    <section id="mode-judge" class="mode" aria-labelledby="judge-heading">
+      <div class="mode-head"><div><span class="eyebrow">Read-only judge view</span><h2 id="judge-heading">Evidence, boundaries, and honest limits</h2></div><span class="pill">Application-safe telemetry</span></div>
+      <div class="grid">
+        <article class="card third"><h3>Gate A status</h3><div id="gate-status" class="decision">INCOMPLETE</div><p id="gate-copy">A working UI is not experimental evidence.</p></article>
+        <article class="card third"><h3>Orchestration</h3><p id="agent-summary">No procedure selected.</p><div id="agent-pills" class="pills"></div></article>
+        <article class="card third"><h3>Blindness proof</h3><p>Fresh session, frozen projection, read-only tool policy.</p><div id="boundary-pills" class="pills"></div></article>
+        <article class="card"><h3>Human approvals & audit timeline</h3><div id="audit-timeline" class="steps"><div class="step">Complete a flow to populate evidence.</div></div></article>
+        <article class="card"><h3>Procedure versions & exact diffs</h3><pre id="version-history">No versions recorded.</pre></article>
+      </div>
+    </section>
+  </main>
+</div>
 <script>
-  let procedureId = null, sessionId = null, stepId = null;
+  const state = {teacherSessionId:localStorage.getItem('byfeelTeacherSession'), procedure:null, probe:null, learnerSessionId:localStorage.getItem('byfeelLearnerSession'), step:null};
   const $ = id => document.getElementById(id);
-  async function api(path, body) {
-    const response = await fetch(path, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || JSON.stringify(data));
-    return data;
+  const esc = value => String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+  const setStatus = (id, message, error=false) => { const el=$(id); el.textContent=message; el.classList.toggle('error',error); };
+  async function api(path, body, method='POST') {
+    const options={method,headers:{}}; if(body!==undefined){options.headers['content-type']='application/json';options.body=JSON.stringify(body);}
+    const response=await fetch(path,options); const data=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(data.error?.message || `Request failed (${response.status})`); return data;
   }
-  async function upload(file, source) {
-    if (!file) return null;
-    const content_base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file);
-    });
-    return api('/api/evidence', {content_base64, content_type: file.type, source});
+  async function asBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result.split(',')[1]);r.onerror=reject;r.readAsDataURL(file);});}
+  async function uploadImage(file,source){if(!file)return null;return api('/api/evidence',{content_base64:await asBase64(file),content_type:file.type,source});}
+  function switchMode(mode){document.querySelectorAll('.mode').forEach(el=>el.classList.toggle('active',el.id===`mode-${mode}`));document.querySelectorAll('.nav-button').forEach(el=>el.setAttribute('aria-selected',el.dataset.mode===mode));if(mode==='judge')loadJudgeEvidence();}
+  document.querySelectorAll('.nav-button').forEach(button=>button.onclick=()=>switchMode(button.dataset.mode));
+  function renderMedia(review){
+    const meta=review.metadata; $('media-meta').innerHTML=`<span class="pill">${review.speech_mode}</span><span class="pill">${meta.duration_seconds.toFixed(1)} sec</span><span class="pill">${review.frames.length} frames</span><span class="pill">${meta.audio_stream_present?'audio present':'no audio'}</span>`;
+    const observations=Object.fromEntries(review.analysis.frame_observations.map(item=>[item.sample_id,item]));
+    $('frames').innerHTML=review.frames.map(frame=>`<figure><img src="${esc(frame.url)}" alt="Teacher frame at ${esc(frame.timestamp_seconds)} seconds"><figcaption>${esc(frame.timestamp_seconds.toFixed(2))}s · ${esc(observations[frame.sample_id]?.visible_state||'Review sample')}</figcaption></figure>`).join('');
+    $('factual-record').value=review.analysis.factual_demonstration_draft; $('approve-facts').disabled=false;
   }
-  $('teach').onclick = async () => {
-    $('teach').disabled = true; $('teach-status').textContent = 'Extracting, then testing the learner-only artifact…';
-    try {
-      const out = await api('/api/teacher/sessions', {title: $('title').value, domain: $('domain').value, learner_goal: $('goal').value, raw_demonstration: $('demo').value, constraints: []});
-      procedureId = out.procedure.id;
-      $('probe').textContent = `${out.probe_run.report.status.toUpperCase()}\n${out.probe_run.report.summary}\n\n${out.probe_run.report.teacher_question || 'No blocker found.'}`;
-      $('repair').disabled = out.probe_run.report.status !== 'blocked';
-      $('teach-status').textContent = 'Learner artifact extracted and blind-tested.';
-    } catch (error) { $('teach-status').textContent = error.message; } finally { $('teach').disabled = false; }
-  };
-  $('repair').onclick = async () => {
-    $('repair').disabled = true; $('repair-status').textContent = 'Applying only this clarification, then reprobing…';
-    try {
-      const evidence = await upload($('teacher-image').files[0], 'teacher');
-      const out = await api(`/api/procedures/${procedureId}/clarifications`, {clarification: $('clarification').value, evidence});
-      $('diff').textContent = `${out.probe_run.report.status.toUpperCase()}\nChanged ${out.correction.step_id}\nBefore: ${JSON.stringify(out.correction.previous_state, null, 2)}\nAfter: ${JSON.stringify(out.correction.new_state, null, 2)}`;
-      $('repair-status').textContent = out.probe_run.report.status === 'unblocked' ? 'Repair passed the fresh blinded probe.' : 'The repair remains blocked.';
-      $('start').disabled = out.procedure.status !== 'learner_ready';
-    } catch (error) { $('repair-status').textContent = error.message; $('repair').disabled = false; }
-  };
-  $('start').onclick = async () => {
-    try {
-      const out = await api('/api/learner/sessions', {procedure_id: procedureId});
-      sessionId = out.session.session_id; stepId = out.current_step.step_id;
-      $('learner-status').textContent = `Current step: ${out.current_step.action}`; $('check').disabled = false;
-    } catch (error) { $('learner-status').textContent = error.message; }
-  };
-  $('check').onclick = async () => {
-    $('check').disabled = true;
-    try {
-      const evidence = await upload($('learner-image').files[0], 'learner');
-      const out = await api(`/api/learner/sessions/${sessionId}/checkpoints`, {step_id: stepId, description: $('observation').value, evidence});
-      const result = out.latest_event.evaluation;
-      $('guidance').textContent = `${result.decision.toUpperCase()} (${result.confidence})\n${result.explanation}\n${result.corrective_guidance || ''}`;
-      $('learner-status').textContent = out.session.status === 'completed' ? 'Procedure complete.' : `Attempts: ${out.session.attempts}`;
-      if (out.current_step) { stepId = out.current_step.step_id; $('check').disabled = false; }
-    } catch (error) { $('learner-status').textContent = error.message; $('check').disabled = false; }
-  };
+  function renderProcedure(out){
+    state.procedure=out.procedure; state.probe=out.probe_run; localStorage.setItem('byfeelProcedure',state.procedure.id);
+    $('procedure-steps').innerHTML=state.procedure.steps.map(step=>`<div class="step"><strong>${esc(step.order)}. ${esc(step.action)}</strong><br>${step.completion_conditions.length?`Ready when: ${esc(step.completion_conditions.join('; '))}`:'No observable completion condition recorded.'}${step.open_questions.length?`<br>Open: ${esc(step.open_questions.join('; '))}`:''}</div>`).join('');if(state.procedure.status==='learner_ready'){$('start').disabled=false;$('learner-procedure').textContent=`${state.procedure.title} · ${state.procedure.steps.length} approved step(s)`;}
+    $('artifact').textContent=JSON.stringify({...state.procedure,status:'learner_ready'},null,2); renderProbe(state.probe); switchMode('probe');
+  }
+  function renderProbe(run){
+    const report=run.report; $('probe-decision').textContent=report.status.toUpperCase(); $('probe-summary').textContent=report.summary; $('teacher-question').textContent=report.teacher_question||'No targeted clarification is justified.';
+    $('probe-details').innerHTML=[...report.blockers,...report.non_blocking_improvements].map(g=>`<div class="step"><strong>${esc(g.issue_type.replaceAll('_',' '))}</strong><br>${esc(g.description)}<br><small>${g.blocks_execution?'Execution blocker':'Optional improvement'}</small></div>`).join('');
+    const blocked=report.status==='blocked'; $('approve-blocker').disabled=!blocked; $('reject-blocker').disabled=!blocked; $('approve-learner').disabled=blocked;
+  }
+  $('process-media').onclick=async()=>{const file=$('teacher-video').files[0];if(!file){setStatus('media-status','Choose a bounded teacher video first.',true);return;} $('process-media').disabled=true;setStatus('media-status','Creating private session and processing bounded media…');try{const session=await api('/api/teacher/sessions',{title:$('title').value,domain:$('domain').value,learner_goal:$('goal').value,constraints:[],speech_mode:$('speech-mode').value});state.teacherSessionId=session.session_id;localStorage.setItem('byfeelTeacherSession',session.session_id);$('resume-id').value=session.session_id;const review=await api(`/api/teacher/sessions/${session.session_id}/media`,{content_base64:await asBase64(file),content_type:file.type});renderMedia(review);setStatus('media-status',`Review required · session ${session.session_id}`);}catch(e){setStatus('media-status',e.message,true);}finally{$('process-media').disabled=false;}};
+  $('seed-demo').onclick=async()=>{setStatus('media-status','Loading deterministic local fixture…');try{const out=await api('/api/demo/seeded-rehearsal');renderProcedure(out);setStatus('media-status','Seeded fixture loaded · 0 model calls · excluded from Gate A.');}catch(e){setStatus('media-status',e.message,true);}};
+  $('resume').onclick=async()=>{try{const id=$('resume-id').value.trim();const out=await api(`/api/teacher/sessions/${id}`,undefined,'GET');state.teacherSessionId=id;localStorage.setItem('byfeelTeacherSession',id);if(out.media_review)renderMedia(out.media_review);if(out.session.status==='facts_approved')$('extract').disabled=false;if(out.procedure&&out.probe_run)renderProcedure({procedure:out.procedure,probe_run:out.probe_run});setStatus('media-status',`Resumed ${id} · ${out.session.status}`);}catch(e){setStatus('media-status',e.message,true);}};
+  $('approve-facts').onclick=async()=>{try{await api(`/api/teacher/sessions/${state.teacherSessionId}/factual-approval`,{approved_factual_record:$('factual-record').value});$('approve-facts').disabled=true;$('extract').disabled=false;setStatus('facts-status','Immutable factual approval recorded. Extraction is now allowed.');}catch(e){setStatus('facts-status',e.message,true);}};
+  $('extract').onclick=async()=>{$('extract').disabled=true;setStatus('facts-status','Teaching Partner is extracting, then launching a fresh blind probe…');try{renderProcedure(await api(`/api/teacher/sessions/${state.teacherSessionId}/extract`));setStatus('facts-status','Procedure extracted from the approved record only.');}catch(e){setStatus('facts-status',e.message,true);$('extract').disabled=false;}};
+  async function review(decision){$('approve-blocker').disabled=true;$('reject-blocker').disabled=true;try{const out=await api(`/api/probe-runs/${state.probe.probe_run_id}/review`,{decision,reason:$('review-reason').value});if(out.decision==='genuine'){$('repair').disabled=false;setStatus('review-status','Genuine blocker approved. Exactly one answer is now allowed.');}else{setStatus('review-status','False/optional blocker recorded. This run is closed without repair.');}}catch(e){setStatus('review-status',e.message,true);$('approve-blocker').disabled=false;$('reject-blocker').disabled=false;}}
+  $('approve-blocker').onclick=()=>review('genuine'); $('reject-blocker').onclick=()=>review('false_blocker');
+  $('repair').onclick=async()=>{$('repair').disabled=true;setStatus('repair-status','Applying only the verbatim answer, then starting a new probe session…');try{const evidence=await uploadImage($('teacher-image').files[0],'teacher');const out=await api(`/api/procedures/${state.procedure.id}/clarifications`,{clarification:$('clarification').value,evidence});state.procedure=out.procedure;state.probe=out.probe_run;$('diff').textContent=`Changed ${out.correction.step_id}\n\nBEFORE\n${JSON.stringify(out.correction.previous_state,null,2)}\n\nAFTER\n${JSON.stringify(out.correction.new_state,null,2)}`;renderProbe(out.probe_run);setStatus('repair-status',out.probe_run.report.status==='unblocked'?'Original blocker is unblocked in a fresh session. Review and approve the tested artifact.':'Fresh probe remains blocked. Negative result preserved.');}catch(e){setStatus('repair-status',e.message,true);}};
+  $('approve-learner').onclick=async()=>{try{state.procedure=await api(`/api/procedures/${state.procedure.id}/learner-approval`);$('approve-learner').disabled=true;$('start').disabled=false;$('learner-procedure').textContent=`${state.procedure.title} · ${state.procedure.steps.length} approved step(s)`;setStatus('approval-status','Exact tested artifact approved for learners.');}catch(e){setStatus('approval-status',e.message,true);}};
+  $('start').onclick=async()=>{try{const out=await api('/api/learner/sessions',{procedure_id:state.procedure.id});state.learnerSessionId=out.session.session_id;localStorage.setItem('byfeelLearnerSession',state.learnerSessionId);$('learner-resume-id').value=state.learnerSessionId;state.step=out.current_step;renderStep(out);$('check').disabled=false;setStatus('learner-status',`Fresh session ${state.learnerSessionId}`);}catch(e){setStatus('learner-status',e.message,true);}};
+  $('resume-learner').onclick=async()=>{try{const id=$('learner-resume-id').value.trim();const out=await api(`/api/learner/sessions/${id}`,undefined,'GET');state.learnerSessionId=id;localStorage.setItem('byfeelLearnerSession',id);if(!state.procedure||state.procedure.id!==out.session.procedure_id)state.procedure=await api(`/api/procedures/${out.session.procedure_id}`,undefined,'GET');$('learner-procedure').textContent=`${state.procedure.title} · ${state.procedure.steps.length} approved step(s)`;renderStep(out);$('check').disabled=out.session.status!=='active';setStatus('learner-status',`Resumed ${id} · ${out.session.status}`);}catch(e){setStatus('learner-status',e.message,true);}};
+  function renderStep(out){if(!out.current_step){$('current-step').textContent='Procedure complete.';$('progress-bar').style.width='100%';return;}state.step=out.current_step;$('current-step').innerHTML=`<strong>${esc(out.current_step.order)}. ${esc(out.current_step.action)}</strong><br>${out.current_step.completion_conditions.length?`Ready when: ${esc(out.current_step.completion_conditions.join('; '))}`:'Follow the approved action.'}`;const total=state.procedure.steps.length;$('progress-bar').style.width=`${(out.session.completed_step_ids.length/total)*100}%`;}
+  $('check').onclick=async()=>{$('check').disabled=true;try{const evidence=await uploadImage($('learner-image').files[0],'learner');const out=await api(`/api/learner/sessions/${state.learnerSessionId}/checkpoints`,{step_id:state.step.step_id,description:$('observation').value,evidence});const result=out.latest_event.evaluation;$('guidance').textContent=result.decision.replaceAll('_',' ').toUpperCase();$('guidance-copy').textContent=[result.explanation,result.corrective_guidance].filter(Boolean).join(' · ');renderStep(out);setStatus('learner-status',out.session.status==='completed'?'Procedure complete.':`Attempt ${out.session.attempts} recorded.`);if(out.session.status==='active')$('check').disabled=false;}catch(e){setStatus('learner-status',e.message,true);$('check').disabled=false;}};
+  async function loadJudgeEvidence(){if(!state.procedure){$('agent-summary').textContent='Complete or resume a procedure flow first.';return;}try{const out=await api(`/api/judge/evidence/${state.procedure.id}`,undefined,'GET');$('gate-status').textContent=out.gate_a.status.toUpperCase();$('gate-copy').textContent=`${out.gate_a.recorded_calls_used}/${out.gate_a.call_ceiling} recorded Gate A calls · actual billed cost ${out.gate_a.actual_billed_cost}. ${out.gate_a.limitation}`;$('agent-summary').textContent=`${out.agent_runs.length} safe ADK run record(s); prompts and hidden reasoning are never stored.`;$('agent-pills').innerHTML=out.agent_runs.map(run=>`<span class="pill">${esc(run.role)} · ${esc(run.model)} · ${esc(run.token_usage.total_tokens)} tokens</span>`).join('');$('boundary-pills').innerHTML=out.blindness_boundary.excluded.map(item=>`<span class="pill">Excluded: ${esc(item)}</span>`).join('');$('audit-timeline').innerHTML=out.audit_events.map(event=>`<div class="step"><strong>${esc(event.event_type.replaceAll('_',' '))}</strong><br>${esc(event.summary)}<br><small>${esc(new Date(event.created_at).toLocaleString())}</small></div>`).join('')||'<div class="step">No audit events recorded.</div>';$('version-history').textContent=JSON.stringify({versions:out.procedure_versions,corrections:out.corrections,probe_runs:out.probe_runs,blocker_reviews:out.blocker_reviews},null,2);}catch(e){$('agent-summary').textContent=e.message;}}
+  if(state.teacherSessionId)$('resume-id').value=state.teacherSessionId;
+  if(state.learnerSessionId)$('learner-resume-id').value=state.learnerSessionId;
+  const storedProcedureId=localStorage.getItem('byfeelProcedure');
+  if(storedProcedureId)api(`/api/procedures/${storedProcedureId}`,undefined,'GET').then(procedure=>{state.procedure=procedure;if(procedure.status==='learner_ready'){$('start').disabled=false;$('learner-procedure').textContent=`${procedure.title} · ${procedure.steps.length} approved step(s)`;}}).catch(()=>localStorage.removeItem('byfeelProcedure'));
 </script>
 </body>
 </html>
