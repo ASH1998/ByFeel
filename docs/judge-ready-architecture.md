@@ -170,6 +170,7 @@ Implemented guarded operations include:
 ```text
 POST /api/teacher/sessions
 POST /api/teacher/sessions/{id}/media
+POST /api/teacher/sessions/{id}/media-stream
 GET  /api/teacher/sessions/{id}
 POST /api/teacher/sessions/{id}/factual-approval
 POST /api/teacher/sessions/{id}/extract
@@ -185,6 +186,47 @@ POST /api/demo/seeded-rehearsal
 
 Conflict responses preserve immutable approvals and reviews. Full request-level
 idempotency remains a documented limitation.
+
+## Gate C transfer experiment
+
+Gate C extends the existing learner session rather than creating a parallel
+product path. A facilitator creates one experiment with a pseudonymous learner
+code, a shared checkpoint, a deliberate incorrect state, and two immutable
+procedure-version references:
+
+- static_instructions — the extracted static learner artifact;
+- byfeel_teacher_repaired — the learner-approved artifact after the reviewed
+  teacher correction.
+
+Each arm starts a fresh learner session pinned to its exact artifact hash.
+Learner events remain append-only. Gate C adds append-only arm attempts and
+interventions with server timestamps, attempt numbers, requested versus safe
+decisions, detection/abstention/missed-detection classification, correction
+flags, elapsed timing, and final outcome. A ByFeel intervention can only be
+constructed from a correction whose new step state exactly matches the approved
+procedure version; its guidance is the teacher feedback verbatim.
+
+When the facilitator marks the deliberate incorrect state, the shared
+checkpoint service records the evaluator's requested decision but suppresses
+unsafe advancement. Missing, uncertain, or human-confirmation decisions remain
+non-success outcomes. The comparison report is structured JSON and reports
+pending, synthetic-excluded, pending-real-evidence, not-evaluable, or
+pass-candidate states. Pass-candidate is intentionally not a Gate C pass.
+
+The browser includes a facilitator Gate C tab for pinning versions, starting
+both arms, recording observations and optional learner snapshots, reviewing
+intervention provenance, finalizing arms, recording human attestations, and
+viewing the JSON report. The seeded path fills the same records with a
+zero-model-call synthetic fixture and is excluded from real evidence.
+
+## Low-bandwidth media boundary
+
+Large teacher files stream to the local application without base64 expansion.
+Sources above 50 MiB are decoded once into a 640-pixel, 8-fps local proxy; model
+media contains only 512-pixel sampled JPEGs and optional mono 16 kHz audio. The
+application rejects any model-media payload above 5 MiB and records that source
+video was not sent. A bounded live-camera path records at up to 640 pixels,
+10 fps, and 600 kbps before using the same local sampling boundary.
 
 ## Runtime diagram
 

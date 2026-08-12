@@ -33,9 +33,27 @@ learner-facing product and must not drive the product shape by themselves.
    system may ask its teacher question or perform any repair. Rejected blockers
    close the run as honest negative results.
 
+## Decision Gate C implementation boundary
+
+The local Gate C runner now reuses the learner session and checkpoint service
+with two exact procedure versions: an extracted static baseline and a
+learner-approved repaired arm. It stores pseudonymous experiment identity,
+version hashes, the shared deliberate incorrect state, append-only learner
+attempts, detection/abstention/missed-detection outcomes, validated
+teacher-correction provenance, learner correction, elapsed timing, and final
+outcomes. Advancement is suppressed when a facilitator marks an observation as
+the deliberate incorrect state, even if a fake or real evaluator requests
+advance.
+
+This is an evidence harness, not a Gate C result. The seeded rehearsal is
+deterministic, zero-model-call, labelled synthetic, and excluded from any real
+pass. A real pass still needs a fresh learner, a genuine teacher-derived
+repair, same-state observations in both arms, and human review.
+
 ## Claims we do not make yet
 
-- The browser UI does not yet expose video capture or transcript review.
+- The browser exposes bounded low-bandwidth camera/file capture and factual
+  transcript review, but it does not perform continuous event-triggered capture.
 - Sampling is bounded and time-based, not continuous live-video reasoning or
   true action-transition detection.
 - Voiced, noisy, multilingual, and uncertain-audio demonstrations have not yet

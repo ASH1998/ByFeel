@@ -27,22 +27,27 @@ each probe. Show blocker versus optional improvement handling, immutable human
 review, the one saved question, the verbatim answer, exact before/after diff,
 and the fresh reprobe. Never imply every demonstration must produce a blocker.
 
-## 2:25–3:15 — learner error and recovery
+## 2:25–3:15 — Gate C arms and learner recovery
 
-Approve the tested artifact and start a fresh learner. Submit “The paper springs
-open.” The seeded Learner Coach blocks and repeats the approved visible cue:
-press until the crease stays flat after the hand is removed. Submit “The crease
-stays flat.” Show advance and completion. For the live path, the scoped ADK
-Learner Coach performs the same checkpoint contract.
+Open **Gate C transfer** and show that the experiment pins two exact versions.
+Run the static-instructions baseline first and submit the deliberate incorrect
+state. Its safe abstention or miss remains in the report. Start the ByFeel arm
+with a fresh session, submit the same incorrect state, show the approved
+teacher-derived intervention and provenance, then submit the learner's
+correction. The runner permits advancement only after that correction. For the
+zero-call rehearsal, the baseline is synthetic and the ByFeel arm completes
+deterministically; say explicitly that it is excluded from a real Gate C pass.
 
 ## 3:15–4:00 — evidence and honest limits
 
-Open Evidence mode. Show immutable versions, linked probes, human approvals,
-safe role/model/tool/token records, and the blindness exclusions. State:
+Open Evidence mode and the Gate C JSON report. Show immutable versions, linked
+probes, learner attempts, intervention provenance, human approvals, safe
+role/model/tool/token records, and the blindness exclusions. State:
 “Gate A is incomplete. The ledger records 12 of 18 calls; actual billed Gemini
-cost is unknown. This UI and ADK work does not replace real-demonstration or
-fresh-learner evidence.” Close with the three roles: Teaching Partner, Blinded
-Probe, and Learner Coach.
+cost is unknown. Gate C software is runnable, but the seeded rehearsal is
+synthetic and does not replace a fresh learner, genuine teacher-derived
+procedure, or facilitator-reviewed transfer evidence.” Close with the three
+roles: Teaching Partner, Blinded Probe, and Learner Coach.
 
 ## Submission blocker
 

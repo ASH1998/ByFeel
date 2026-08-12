@@ -84,6 +84,10 @@ Current validation status: Gate A remains incomplete. Its ignored ledger records
 demonstration reliability review remains required. UI or ADK functionality is
 not counted as Gate A evidence. Local Gate B preparation is described in
 `docs/decision-gate-b.md`; no held-out Gate B evaluation has been completed.
+The supplied towel-video workaround is recorded factually in
+`docs/towel-folding-pilot.md`: it is useful pilot evidence, but the purported
+teacher/student pair is byte-identical and therefore not an independent learner
+comparison.
 
 ### Teacher video ingestion
 
@@ -137,7 +141,10 @@ Open <http://127.0.0.1:8000>. The role-separated page walks through:
 4. immutable blocker review, one verbatim clarification, provenance-checked
    bounded repair, exact diff, and fresh reprobe;
 5. explicit learner-artifact approval and Google ADK Learner Coach checkpoints;
-6. a read-only evidence view with versions, approvals, tool/model records,
+6. a facilitator Gate C flow that pins a static baseline and a ByFeel repaired
+   version, runs separate learner sessions, and records attempts, detection,
+   abstention, intervention provenance, correction, timing, and final outcome;
+7. a read-only evidence view with versions, approvals, tool/model records,
    token usage when available, and honest limitations.
 
 Use **Load seeded rehearsal · 0 model calls** for a deterministic browser
@@ -145,6 +152,40 @@ rehearsal. It includes a deliberate learner error and teacher-derived recovery,
 is visibly labeled, produces no ADK/model evidence, and is excluded from Gate A.
 Teacher and learner session IDs can be resumed after a page refresh while the
 configured repository remains available.
+
+Large teacher videos use the streaming endpoint rather than browser base64.
+Files up to 512 MiB remain local; sources above 50 MiB are decoded once into a
+640-pixel, 8-fps proxy. Gemini receives neither source nor proxy video—only
+512-pixel sampled JPEGs and optional mono 16 kHz audio, with a hard 5 MiB total
+model-media limit. The browser can also record a bounded 640-pixel, 10-fps,
+600-kbps WebM from a local camera.
+
+### Decision Gate C transfer experiment
+
+Open **04 · Gate C transfer** after a learner-ready procedure exists. The
+facilitator selects the exact extracted procedure version for the
+static_instructions baseline and the exact learner_approved version for the
+byfeel_teacher_repaired arm. Each arm receives a new version-pinned learner
+session. The first target-checkpoint attempt must be marked as the same agreed
+deliberate incorrect state; the runner records whether the system detected it,
+abstained safely, or missed it. A ByFeel intervention is accepted only when it
+resolves to an existing append-only teacher correction and the exact approved
+procedure version.
+
+The report is structured JSON and intentionally distinguishes pending,
+pending_real_evidence, synthetic_excluded, not_evaluable, and pass_candidate.
+pass_candidate is not a claim that Gate C passed: a real facilitator must
+review the fresh learner observations and genuine teacher provenance. The
+seeded button creates a deterministic pair with zero model calls and is always
+labelled synthetic and excluded.
+
+The formal invariants, remaining evidence, and facilitator protocol are in
+[docs/decision-gate-c.md](docs/decision-gate-c.md); the 148-item checklist
+classification is in [docs/gate-c-readiness.md](docs/gate-c-readiness.md).
+
+For a real run, do not enter names, email addresses, raw media, or hidden notes.
+Use the concise facilitator protocol below. Only separately approved Gemini
+usage may be used for a real run.
 
 Optional PNG, JPEG, and WebP snapshots are limited to 5 MiB. The API validates
 the media signature, records a SHA-256 checksum and provenance, and sends a
@@ -185,6 +226,7 @@ Useful local endpoints:
 - `POST /api/teacher/sessions`
 - `GET /api/teacher/sessions/{id}`
 - `POST /api/teacher/sessions/{id}/media`
+- `POST /api/teacher/sessions/{id}/media-stream`
 - `POST /api/teacher/sessions/{id}/factual-approval`
 - `POST /api/teacher/sessions/{id}/extract`
 - `GET /api/teacher/sessions/{id}/frames/{sample-id}`
@@ -198,6 +240,16 @@ Useful local endpoints:
 - `GET /api/learner/sessions/{id}/events`
 - `GET /api/judge/evidence/{procedure-id}`
 - `POST /api/demo/seeded-rehearsal`
+
+Gate C API routes:
+
+- POST /api/gate-c/experiments
+- GET /api/gate-c/experiments/{id}
+- GET /api/gate-c/experiments/{id}/report
+- POST /api/gate-c/experiments/{id}/arms/{arm}/start
+- POST /api/gate-c/arms/{arm-run-id}/attempts
+- POST /api/gate-c/arms/{arm-run-id}/finalize
+- POST /api/gate-c/experiments/{id}/attestation
 
 ## Verification
 
@@ -215,6 +267,30 @@ usage:
 ```powershell
 uv run python scripts/live_smoke.py --namespace your-unique-test-namespace
 ```
+
+## Real Gate C facilitator protocol
+
+1. Confirm the task is low-risk, the teacher-approved repair is genuine, and
+   the learner has not seen the demonstration. Assign a pseudonymous learner
+   code and keep the same code for both arms.
+2. Pin the extracted static version and the learner-approved repaired version
+   for the same procedure and checkpoint. Write one observable deliberate
+   incorrect state before the learner starts.
+3. Run the static arm with only its static instructions. Submit the incorrect
+   observation, record detection/abstention/missed detection, and do not provide
+   ByFeel teacher-repaired guidance. Finalize the arm.
+4. Run the ByFeel arm with a fresh session. Submit the same incorrect state.
+   Show the intervention and its correction provenance, then let the learner
+   correct the state and submit a correction observation. Advance only when
+   the checkpoint evaluator advances after that correction. Finalize the arm.
+5. Record the human attestation without personal information. Review the JSON
+   comparison, attempts, elapsed times, learner events, intervention source,
+   and any uncertainty. Treat missing or abstained evidence as not evaluable.
+
+The only remaining Gate C claim is real evidence: fresh learner behavior,
+genuine teacher-derived procedure and observations, and a facilitator-reviewed
+comparison. Local fake-model tests and the synthetic rehearsal do not satisfy
+that claim.
 
 ## Repository layout
 
