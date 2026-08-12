@@ -251,6 +251,32 @@ def create_and_extract(client: TestClient) -> dict:
     return extracted
 
 
+def test_api_streams_large_video_route_without_base64(tmp_path) -> None:
+    client = TestClient(create_app(api_service(tmp_path)))
+    session = client.post(
+        "/api/teacher/sessions",
+        json={
+            "title": "Fold a towel",
+            "domain": "towel folding",
+            "learner_goal": "Produce the demonstrated folded end state",
+            "constraints": [],
+            "speech_mode": "silent",
+        },
+    )
+    session_id = session.json()["session_id"]
+
+    media = client.post(
+        f"/api/teacher/sessions/{session_id}/media-stream",
+        content=b"fake matroska video",
+        headers={"content-type": "video/x-matroska"},
+    )
+
+    assert media.status_code == 200
+    assert media.json()["human_approval_required"] is True
+    assert media.json()["model_media"]["source_media_sent_to_model"] is False
+    assert (tmp_path / session_id / "teacher-source.mkv").read_bytes() == (b"fake matroska video")
+
+
 def test_api_teacher_repair_learner_checkpoint_flow(tmp_path) -> None:
     service = api_service(tmp_path)
     client = TestClient(create_app(service))
@@ -258,7 +284,11 @@ def test_api_teacher_repair_learner_checkpoint_flow(tmp_path) -> None:
     assert client.get("/health").json() == {"status": "ok"}
     assert client.get("/ready").json() == {"status": "ready"}
     assert client.get("/version").json()["version"]
-    assert client.get("/").status_code == 200
+    html = client.get("/")
+    assert html.status_code == 200
+    assert "media-stream" in html.text
+    assert "getUserMedia" in html.text
+    assert "capped at 5 MiB total" in html.text
 
     taught = create_and_extract(client)
     assert taught["probe_run"]["report"]["status"] == "blocked"
@@ -397,7 +427,30 @@ def test_seeded_rehearsal_is_deterministic_and_explicitly_excluded_from_gate_a()
 
     seeded = client.post("/api/demo/seeded-rehearsal")
     assert seeded.status_code == 200
+    assert seeded.json()["gate_c"]["gate_c_decision"] == "synthetic_excluded"
+    assert seeded.json()["gate_c"]["synthetic"] is True
     procedure_id = seeded.json()["procedure"]["id"]
+    evidence = client.get(f"/api/judge/evidence/{procedure_id}").json()
+    baseline = next(
+        item for item in evidence["procedure_versions"] if item["reason"] == "extracted"
+    )
+    approved = next(
+        item for item in evidence["procedure_versions"] if item["reason"] == "learner_approved"
+    )
+    real_from_seeded = client.post(
+        "/api/gate-c/experiments",
+        json={
+            "learner_pseudonym": "learner-002",
+            "procedure_id": procedure_id,
+            "baseline_version_id": baseline["version_id"],
+            "byfeel_version_id": approved["version_id"],
+            "checkpoint_step_id": "step-1",
+            "deliberate_incorrect_state": "The crease springs open after release.",
+            "safety_confirmed": True,
+        },
+    )
+    assert real_from_seeded.status_code == 409
+    assert "cannot create real Gate C experiments" in real_from_seeded.json()["error"]["message"]
     learner = client.post("/api/learner/sessions", json={"procedure_id": procedure_id}).json()
     session_id = learner["session"]["session_id"]
 
@@ -416,7 +469,6 @@ def test_seeded_rehearsal_is_deterministic_and_explicitly_excluded_from_gate_a()
     )
     assert completed.json()["session"]["status"] == "completed"
     assert model.calls == 0
-    evidence = client.get(f"/api/judge/evidence/{procedure_id}").json()
     assert evidence["gate_a"]["status"] == "incomplete"
     assert evidence["agent_runs"] == []
     assert evidence["audit_events"][0]["event_type"] == "seeded_rehearsal_loaded"

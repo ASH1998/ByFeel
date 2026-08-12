@@ -58,6 +58,7 @@
     .frames { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-top:14px; }
     figure { margin:0; border:1px solid var(--line); border-radius:13px; overflow:hidden; background:#f0f0ea; }
     figure img { display:block; width:100%; aspect-ratio:16/10; object-fit:cover; }
+    .camera-preview { display:block; width:100%; max-height:260px; margin-top:12px; border-radius:13px; background:#122119; object-fit:contain; }
     figcaption { padding:8px; font-size:.72rem; color:var(--muted); }
     .steps { display:grid; gap:10px; }
     .step { padding:15px; background:#f7f7f1; border:1px solid var(--line); border-radius:14px; }
@@ -78,7 +79,8 @@
       <button class="nav-button" data-mode="teacher" aria-selected="true">01 · Teacher</button>
       <button class="nav-button" data-mode="probe" aria-selected="false">02 · Blind probe</button>
       <button class="nav-button" data-mode="learner" aria-selected="false">03 · Learner</button>
-      <button class="nav-button" data-mode="judge" aria-selected="false">04 · Evidence</button>
+      <button class="nav-button" data-mode="gate-c" aria-selected="false">04 · Gate C transfer</button>
+      <button class="nav-button" data-mode="judge" aria-selected="false">05 · Evidence</button>
     </nav>
     <div class="boundary-note">Roles are application-enforced. The blind probe gets a fresh ADK session and only the frozen learner artifact—not teacher media, transcript, notes, or prior reasoning.</div>
   </aside>
@@ -96,8 +98,11 @@
           <p>Upload one bounded demonstration. Silent mode sends frames only; spoken mode includes its audio track.</p>
           <div class="row"><label>Title<input id="title" value="Fold a paper marker"></label><label>Domain<input id="domain" value="paper craft"></label></div>
           <label>Learner goal<input id="goal" value="Make a stable folded marker"></label>
-          <div class="row"><label>Speech mode<select id="speech-mode"><option value="silent">Silent — visual only</option><option value="spoken">Spoken — audio + visual</option><option value="unsure">Unsure — inspect audio</option></select></label><label>Teacher video<input id="teacher-video" type="file" accept="video/mp4,video/webm,video/quicktime"></label></div>
-          <div class="notice warn">Processing uses one Gemini 3.5 Flash-Lite media call. Upload is capped at 50 MiB; 9–18 frames are sampled by duration.</div>
+          <div class="row"><label>Speech mode<select id="speech-mode"><option value="silent">Silent — visual only</option><option value="spoken">Spoken — audio + visual</option><option value="unsure">Unsure — inspect audio</option></select></label><label>Teacher video<input id="teacher-video" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska,.mkv"></label></div>
+          <div class="actions"><button id="camera-start" class="secondary">Record low-bandwidth camera</button><button id="camera-stop" class="secondary" disabled>Stop camera</button></div>
+          <video id="camera-preview" class="camera-preview" autoplay muted playsinline hidden></video>
+          <p id="camera-status" class="status" role="status"></p>
+          <div class="notice warn">The raw file streams only to this local app (up to 512 MiB). Large videos are decoded into a 640 px / 8 fps proxy; Gemini receives only 512 px sampled JPEGs and optional mono 16 kHz audio, capped at 5 MiB total.</div>
           <div class="actions"><button id="process-media">Create session & process video</button></div>
           <button id="seed-demo" class="secondary">Load seeded rehearsal · 0 model calls</button>
           <label>Resume session ID<input id="resume-id" placeholder="teacher-…"></label>
@@ -168,6 +173,70 @@
       </div>
     </section>
 
+    <section id="mode-gate-c" class="mode" aria-labelledby="gate-c-heading">
+      <div class="mode-head"><div><span class="eyebrow">Facilitator-only experiment setup</span><h2 id="gate-c-heading">Compare static instructions with ByFeel repair</h2></div><span class="pill">Decision Gate C</span></div>
+      <div class="notice warn">Run both arms with the same deliberate incorrect state. The baseline receives only the extracted static version; the ByFeel arm receives only the approved learner version and its validated teacher correction. Synthetic rehearsal is clearly excluded from a real Gate C pass.</div>
+      <div class="grid">
+        <article class="card">
+          <h3>1. Pin the experiment</h3>
+          <label>Pseudonymous learner code<input id="gatec-pseudonym" value="learner-001" pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,63}"></label>
+          <label>Procedure ID<input id="gatec-procedure-id" readonly placeholder="Extract or resume a procedure first"></label>
+          <div class="row"><label>Static baseline version<select id="gatec-baseline-version"></select></label><label>ByFeel repaired version<select id="gatec-byfeel-version"></select></label></div>
+          <label>Checkpoint step<select id="gatec-step"></select></label>
+          <label>Agreed deliberate incorrect state<textarea id="gatec-incorrect-state">The learner deliberately reaches the visibly incorrect checkpoint state.</textarea></label>
+          <label><input id="gatec-safety" type="checkbox"> I confirm this is a low-risk task and no unavailable sense is required.</label>
+          <div class="actions"><button id="gatec-create">Create Gate C experiment</button><button id="gatec-load-seeded" class="secondary">Load synthetic rehearsal</button></div>
+          <p id="gatec-setup-status" class="status" role="status"></p>
+        </article>
+        <article class="card">
+          <h3>2. Evidence boundary</h3>
+          <div class="pills"><span class="pill">Same procedure ID</span><span class="pill">Exact version hashes</span><span class="pill">Fresh learner session per arm</span><span class="pill">Append-only attempts</span></div>
+          <div class="notice">Do not enter names, email addresses, raw media, or hidden teacher notes. A missing, uncertain, or human-confirmation result is never counted as a successful transfer.</div>
+          <pre id="gatec-identity">Create an experiment to show its pinned identity.</pre>
+        </article>
+
+        <article class="card gate-arm">
+          <h3>Static-instructions baseline</h3>
+          <p id="gatec-baseline-status">Not started. No repaired intervention is available in this arm.</p>
+          <div id="gatec-baseline-step" class="step">Start the arm to reveal the current learner step.</div>
+          <label>Observed learner state<textarea id="gatec-baseline-observation" placeholder="Describe what the learner actually reached."></textarea></label>
+          <label><input id="gatec-baseline-incorrect" type="checkbox"> This is the agreed deliberate incorrect state</label>
+          <label><input id="gatec-baseline-correction" type="checkbox"> The learner corrected the state without ByFeel guidance</label>
+          <label>Optional learner snapshot<input id="gatec-baseline-image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+          <div class="actions"><button id="gatec-baseline-start" disabled>Start baseline</button><button id="gatec-baseline-attempt" disabled>Record baseline attempt</button><button id="gatec-baseline-finalize" class="secondary" disabled>Finalize baseline</button></div>
+          <p id="gatec-baseline-feedback" class="status" role="status"></p>
+        </article>
+        <article class="card gate-arm">
+          <h3>ByFeel teacher-repaired guidance</h3>
+          <p id="gatec-byfeel-status">Not started. Intervention provenance will be shown after a blocked attempt.</p>
+          <div id="gatec-byfeel-step" class="step">Start the arm to reveal the current learner step.</div>
+          <label>Observed learner state<textarea id="gatec-byfeel-observation" placeholder="Describe what the learner actually reached."></textarea></label>
+          <label><input id="gatec-byfeel-incorrect" type="checkbox"> This is the agreed deliberate incorrect state</label>
+          <label><input id="gatec-byfeel-correction" type="checkbox"> The learner corrected the state after the approved intervention</label>
+          <label>Optional learner snapshot<input id="gatec-byfeel-image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+          <div class="actions"><button id="gatec-byfeel-start" disabled>Start ByFeel arm</button><button id="gatec-byfeel-attempt" disabled>Record ByFeel attempt</button><button id="gatec-byfeel-finalize" class="secondary" disabled>Finalize ByFeel</button></div>
+          <p id="gatec-byfeel-feedback" class="status" role="status"></p>
+          <pre id="gatec-intervention">No intervention recorded.</pre>
+        </article>
+
+        <article class="card">
+          <h3>3. Attest real evidence</h3>
+          <label><input id="gatec-fresh-learner" type="checkbox"> Fresh learner did not see the demonstration</label>
+          <label><input id="gatec-teacher-confirmed" type="checkbox"> Teacher-derived repaired procedure was genuine and approved</label>
+          <label><input id="gatec-no-pii" type="checkbox"> Recording contains no personal learner information</label>
+          <label>Facilitator review note<textarea id="gatec-review-note">Synthetic rehearsal only; replace this with a factual review note for a real run.</textarea></label>
+          <button id="gatec-attest" disabled>Record evidence attestation</button>
+          <p id="gatec-attest-status" class="status" role="status"></p>
+        </article>
+        <article class="card wide">
+          <h3>4. Judge-facing comparison</h3>
+          <div id="gatec-report-status" class="decision">PENDING</div>
+          <p id="gatec-report-limitation">Both arms and a human review are required.</p>
+          <pre id="gatec-report">No Gate C report yet.</pre>
+        </article>
+      </div>
+    </section>
+
     <section id="mode-judge" class="mode" aria-labelledby="judge-heading">
       <div class="mode-head"><div><span class="eyebrow">Read-only judge view</span><h2 id="judge-heading">Evidence, boundaries, and honest limits</h2></div><span class="pill">Application-safe telemetry</span></div>
       <div class="grid">
@@ -181,7 +250,7 @@
   </main>
 </div>
 <script>
-  const state = {teacherSessionId:localStorage.getItem('byfeelTeacherSession'), procedure:null, probe:null, learnerSessionId:localStorage.getItem('byfeelLearnerSession'), step:null};
+  const state = {teacherSessionId:localStorage.getItem('byfeelTeacherSession'), procedure:null, probe:null, learnerSessionId:localStorage.getItem('byfeelLearnerSession'), step:null, gateCExperimentId:null, gateC:null, gateCVersions:null, capturedVideo:null, cameraStream:null, cameraRecorder:null, cameraChunks:[]};
   const $ = id => document.getElementById(id);
   const esc = value => String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
   const setStatus = (id, message, error=false) => { const el=$(id); el.textContent=message; el.classList.toggle('error',error); };
@@ -190,9 +259,11 @@
     const response=await fetch(path,options); const data=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(data.error?.message || `Request failed (${response.status})`); return data;
   }
+  function videoContentType(file){if(file.type)return file.type;const ext=file.name.split('.').pop().toLowerCase();return ({mkv:'video/x-matroska',mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime'})[ext]||'application/octet-stream';}
+  async function streamVideo(sessionId,file){const response=await fetch(`/api/teacher/sessions/${sessionId}/media-stream`,{method:'POST',headers:{'content-type':videoContentType(file)},body:file});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error?.message||`Request failed (${response.status})`);return data;}
   async function asBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result.split(',')[1]);r.onerror=reject;r.readAsDataURL(file);});}
   async function uploadImage(file,source){if(!file)return null;return api('/api/evidence',{content_base64:await asBase64(file),content_type:file.type,source});}
-  function switchMode(mode){document.querySelectorAll('.mode').forEach(el=>el.classList.toggle('active',el.id===`mode-${mode}`));document.querySelectorAll('.nav-button').forEach(el=>el.setAttribute('aria-selected',el.dataset.mode===mode));if(mode==='judge')loadJudgeEvidence();}
+  function switchMode(mode){document.querySelectorAll('.mode').forEach(el=>el.classList.toggle('active',el.id===`mode-${mode}`));document.querySelectorAll('.nav-button').forEach(el=>el.setAttribute('aria-selected',el.dataset.mode===mode));if(mode==='judge')loadJudgeEvidence();if(mode==='gate-c'){loadGateCVersions();if(state.gateCExperimentId)loadGateCExperiment(state.gateCExperimentId);}}
   document.querySelectorAll('.nav-button').forEach(button=>button.onclick=()=>switchMode(button.dataset.mode));
   function renderMedia(review){
     const meta=review.metadata; $('media-meta').innerHTML=`<span class="pill">${review.speech_mode}</span><span class="pill">${meta.duration_seconds.toFixed(1)} sec</span><span class="pill">${review.frames.length} frames</span><span class="pill">${meta.audio_stream_present?'audio present':'no audio'}</span>`;
@@ -208,10 +279,150 @@
   function renderProbe(run){
     const report=run.report; $('probe-decision').textContent=report.status.toUpperCase(); $('probe-summary').textContent=report.summary; $('teacher-question').textContent=report.teacher_question||'No targeted clarification is justified.';
     $('probe-details').innerHTML=[...report.blockers,...report.non_blocking_improvements].map(g=>`<div class="step"><strong>${esc(g.issue_type.replaceAll('_',' '))}</strong><br>${esc(g.description)}<br><small>${g.blocks_execution?'Execution blocker':'Optional improvement'}</small></div>`).join('');
-    const blocked=report.status==='blocked'; $('approve-blocker').disabled=!blocked; $('reject-blocker').disabled=!blocked; $('approve-learner').disabled=blocked;
+   const blocked=report.status==='blocked'; $('approve-blocker').disabled=!blocked; $('reject-blocker').disabled=!blocked; $('approve-learner').disabled=blocked;
+ }
+  async function loadGateCVersions(){
+    if(!state.procedure){$('gatec-procedure-id').value='';$('gatec-setup-status').textContent='Extract or resume a procedure before pinning Gate C.';return;}
+    $('gatec-procedure-id').value=state.procedure.id;
+    try{
+      const evidence=await api('/api/judge/evidence/'+state.procedure.id,undefined,'GET');
+      state.gateCVersions=evidence.procedure_versions||[];
+      const baseline=state.gateCVersions.filter(version=>version.reason==='extracted');
+      const byfeel=state.gateCVersions.filter(version=>version.reason==='learner_approved');
+      $('gatec-baseline-version').innerHTML=baseline.map(version=>'<option value="'+esc(version.version_id)+'">'+esc(version.version_id)+' · extracted · '+esc(version.learner_artifact_hash.slice(0,12))+'</option>').join('');
+      $('gatec-byfeel-version').innerHTML=byfeel.map(version=>'<option value="'+esc(version.version_id)+'">'+esc(version.version_id)+' · approved · '+esc(version.learner_artifact_hash.slice(0,12))+'</option>').join('');
+      $('gatec-step').innerHTML=state.procedure.steps.map(step=>'<option value="'+esc(step.step_id)+'">'+esc(step.order)+'. '+esc(step.action)+'</option>').join('');
+      const seeded=state.procedure.id.startsWith('seeded-rehearsal-');
+      $('gatec-create').disabled=seeded||baseline.length===0||byfeel.length===0;
+      $('gatec-setup-status').textContent=seeded?'Synthetic rehearsal loaded. It is excluded from any real Gate C pass.':baseline.length&&byfeel.length?'Exact extracted and approved versions are ready.':'Both an extracted baseline and learner-approved repair are required.';
+    }catch(error){setStatus('gatec-setup-status',error.message,true);}
   }
-  $('process-media').onclick=async()=>{const file=$('teacher-video').files[0];if(!file){setStatus('media-status','Choose a bounded teacher video first.',true);return;} $('process-media').disabled=true;setStatus('media-status','Creating private session and processing bounded media…');try{const session=await api('/api/teacher/sessions',{title:$('title').value,domain:$('domain').value,learner_goal:$('goal').value,constraints:[],speech_mode:$('speech-mode').value});state.teacherSessionId=session.session_id;localStorage.setItem('byfeelTeacherSession',session.session_id);$('resume-id').value=session.session_id;const review=await api(`/api/teacher/sessions/${session.session_id}/media`,{content_base64:await asBase64(file),content_type:file.type});renderMedia(review);setStatus('media-status',`Review required · session ${session.session_id}`);}catch(e){setStatus('media-status',e.message,true);}finally{$('process-media').disabled=false;}};
-  $('seed-demo').onclick=async()=>{setStatus('media-status','Loading deterministic local fixture…');try{const out=await api('/api/demo/seeded-rehearsal');renderProcedure(out);setStatus('media-status','Seeded fixture loaded · 0 model calls · excluded from Gate A.');}catch(e){setStatus('media-status',e.message,true);}};
+  function renderGateCArm(arm,item){
+    const prefix=arm==='static_instructions'?'baseline':'byfeel';
+    const status=$(prefix==='baseline'?'gatec-baseline-status':'gatec-byfeel-status');
+    const step=$(prefix==='baseline'?'gatec-baseline-step':'gatec-byfeel-step');
+    const start=$(prefix==='baseline'?'gatec-baseline-start':'gatec-byfeel-start');
+    const attempt=$(prefix==='baseline'?'gatec-baseline-attempt':'gatec-byfeel-attempt');
+    const finalize=$(prefix==='baseline'?'gatec-baseline-finalize':'gatec-byfeel-finalize');
+    if(!item){
+      status.textContent='Not started.';
+      step.textContent='Start the arm to reveal the current learner step.';
+      start.disabled=!state.gateC;
+      attempt.disabled=true;finalize.disabled=true;
+      if(prefix==='byfeel')$('gatec-intervention').textContent='No intervention recorded.';
+      return;
+    }
+    const run=item.arm_run;
+    const last=item.attempts[item.attempts.length-1];
+    status.textContent=run.arm+' · '+run.status+' · '+run.attempt_count+' attempt(s) · '+(run.final_outcome||'not finalized');
+    step.textContent=last?'Current recorded step: '+last.step_id+' · safe decision: '+last.safe_decision:'Fresh learner session: '+run.learner_session_id;
+    start.disabled=true;
+    attempt.disabled=run.status!=='active';
+    finalize.disabled=run.status!=='active';
+    if(prefix==='byfeel')$('gatec-intervention').textContent=item.interventions.length?JSON.stringify(item.interventions[item.interventions.length-1],null,2):'No intervention recorded.';
+  }
+  function renderGateCReport(report){
+    if(!report)return;
+    $('gatec-report-status').textContent=report.gate_c_decision.replaceAll('_',' ').toUpperCase();
+    $('gatec-report-limitation').textContent=report.limitation;
+    $('gatec-report').textContent=JSON.stringify(report,null,2);
+  }
+  async function loadGateCExperiment(experimentId){
+    try{
+      const data=await api('/api/gate-c/experiments/'+experimentId,undefined,'GET');
+      state.gateCExperimentId=experimentId;state.gateC=data;
+      $('gatec-identity').textContent=JSON.stringify(data.experiment,null,2);
+      const byArm=Object.fromEntries(data.arms.map(item=>[item.arm_run.arm,item]));
+      renderGateCArm('static_instructions',byArm.static_instructions);
+      renderGateCArm('byfeel_teacher_repaired',byArm.byfeel_teacher_repaired);
+      renderGateCReport(data.report);
+      $('gatec-attest').disabled=false;
+    }catch(error){setStatus('gatec-setup-status',error.message,true);}
+  }
+  $('gatec-create').onclick=async()=>{
+    try{
+      if(state.procedure.id.startsWith('seeded-rehearsal-'))throw new Error('Seeded rehearsal procedures cannot create real Gate C experiments.');
+      const out=await api('/api/gate-c/experiments',{
+        learner_pseudonym:$('gatec-pseudonym').value.trim(),
+        procedure_id:state.procedure.id,
+        baseline_version_id:$('gatec-baseline-version').value,
+        byfeel_version_id:$('gatec-byfeel-version').value,
+        checkpoint_step_id:$('gatec-step').value,
+        deliberate_incorrect_state:$('gatec-incorrect-state').value,
+        safety_confirmed:$('gatec-safety').checked
+      });
+      state.gateCExperimentId=out.experiment_id;
+      setStatus('gatec-setup-status','Experiment '+out.experiment_id+' pinned. Start both arms with the same learner protocol.');
+      await loadGateCExperiment(out.experiment_id);
+    }catch(error){setStatus('gatec-setup-status',error.message,true);}
+  };
+  $('gatec-load-seeded').onclick=async()=>{
+    try{
+      const out=await api('/api/demo/seeded-rehearsal');
+      renderProcedure(out);
+      switchMode('gate-c');
+      await loadGateCVersions();
+      if(out.gate_c){state.gateCExperimentId=out.gate_c.experiment_id;await loadGateCExperiment(state.gateCExperimentId);}
+      setStatus('gatec-setup-status','Synthetic rehearsal loaded. It is excluded from any real Gate C pass.');
+    }catch(error){setStatus('gatec-setup-status',error.message,true);}
+  };
+  async function startGateCArm(arm){
+    try{
+      const out=await api('/api/gate-c/experiments/'+state.gateCExperimentId+'/arms/'+arm+'/start');
+      await loadGateCExperiment(state.gateCExperimentId);
+      setStatus(arm==='static_instructions'?'gatec-baseline-feedback':'gatec-byfeel-feedback','Fresh arm session '+out.learner_session_id+' started.');
+    }catch(error){setStatus(arm==='static_instructions'?'gatec-baseline-feedback':'gatec-byfeel-feedback',error.message,true);}
+  }
+  async function recordGateCAttempt(arm){
+    const prefix=arm==='static_instructions'?'baseline':'byfeel';
+    const item=state.gateC&&state.gateC.arms.find(value=>value.arm_run.arm===arm);
+    if(!item)return;
+    try{
+      const image=$(prefix==='baseline'?'gatec-baseline-image':'gatec-byfeel-image').files[0];
+      const evidence=await uploadImage(image,'learner');
+      const out=await api('/api/gate-c/arms/'+item.arm_run.arm_run_id+'/attempts',{
+        description:$(prefix==='baseline'?'gatec-baseline-observation':'gatec-byfeel-observation').value,
+        is_deliberate_incorrect:$(prefix==='baseline'?'gatec-baseline-incorrect':'gatec-byfeel-incorrect').checked,
+        is_correction:$(prefix==='baseline'?'gatec-baseline-correction':'gatec-byfeel-correction').checked,
+        evidence:evidence
+      });
+      await loadGateCExperiment(state.gateCExperimentId);
+      setStatus(prefix==='baseline'?'gatec-baseline-feedback':'gatec-byfeel-feedback','Attempt recorded · '+out.attempt.safe_decision+' · '+(out.attempt.detection_outcome||'ongoing'));
+    }catch(error){setStatus(prefix==='baseline'?'gatec-baseline-feedback':'gatec-byfeel-feedback',error.message,true);}
+  }
+  async function finalizeGateCArm(arm){
+    const prefix=arm==='static_instructions'?'baseline':'byfeel';
+    const item=state.gateC&&state.gateC.arms.find(value=>value.arm_run.arm===arm);
+    if(!item)return;
+    try{
+      const out=await api('/api/gate-c/arms/'+item.arm_run.arm_run_id+'/finalize');
+      await loadGateCExperiment(state.gateCExperimentId);
+      setStatus(prefix==='baseline'?'gatec-baseline-feedback':'gatec-byfeel-feedback','Finalized · '+out.final_outcome);
+    }catch(error){setStatus(prefix==='baseline'?'gatec-baseline-feedback':'gatec-byfeel-feedback',error.message,true);}
+  }
+  $('gatec-baseline-start').onclick=()=>startGateCArm('static_instructions');
+  $('gatec-byfeel-start').onclick=()=>startGateCArm('byfeel_teacher_repaired');
+  $('gatec-baseline-attempt').onclick=()=>recordGateCAttempt('static_instructions');
+  $('gatec-byfeel-attempt').onclick=()=>recordGateCAttempt('byfeel_teacher_repaired');
+  $('gatec-baseline-finalize').onclick=()=>finalizeGateCArm('static_instructions');
+  $('gatec-byfeel-finalize').onclick=()=>finalizeGateCArm('byfeel_teacher_repaired');
+  $('gatec-attest').onclick=async()=>{
+    try{
+      await api('/api/gate-c/experiments/'+state.gateCExperimentId+'/attestation',{
+        fresh_learner_confirmed:$('gatec-fresh-learner').checked,
+        teacher_procedure_confirmed:$('gatec-teacher-confirmed').checked,
+        recorded_without_personal_data:$('gatec-no-pii').checked,
+        reviewer_note:$('gatec-review-note').value
+      });
+      await loadGateCExperiment(state.gateCExperimentId);
+      setStatus('gatec-attest-status','Attestation recorded. A real report remains subject to facilitator review.');
+    }catch(error){setStatus('gatec-attest-status',error.message,true);}
+  };
+  $('teacher-video').onchange=()=>{if($('teacher-video').files[0]){state.capturedVideo=null;setStatus('camera-status','Using the selected local video file.');}};
+  $('camera-start').onclick=async()=>{try{const includeAudio=$('speech-mode').value!=='silent';state.cameraStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640,max:640},height:{ideal:360,max:480},frameRate:{ideal:8,max:10}},audio:includeAudio?{channelCount:1,sampleRate:16000}:false});$('camera-preview').srcObject=state.cameraStream;$('camera-preview').hidden=false;state.cameraChunks=[];const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp8')?'video/webm;codecs=vp8':'video/webm';state.cameraRecorder=new MediaRecorder(state.cameraStream,{mimeType:mime,videoBitsPerSecond:600000,audioBitsPerSecond:32000});state.cameraRecorder.ondataavailable=e=>{if(e.data.size)state.cameraChunks.push(e.data);};state.cameraRecorder.onstop=()=>{const blob=new Blob(state.cameraChunks,{type:'video/webm'});state.capturedVideo=new File([blob],`camera-${Date.now()}.webm`,{type:'video/webm'});state.cameraStream.getTracks().forEach(track=>track.stop());state.cameraStream=null;$('camera-preview').srcObject=null;$('camera-preview').hidden=true;$('camera-start').disabled=false;$('camera-stop').disabled=true;setStatus('camera-status',`Captured ${Math.ceil(state.capturedVideo.size/1024)} KiB low-bandwidth WebM. Ready to process.`);};state.cameraRecorder.start(1000);$('camera-start').disabled=true;$('camera-stop').disabled=false;setStatus('camera-status','Recording at up to 640 px, 10 fps, and 600 kbps locally…');}catch(e){setStatus('camera-status',e.message||'Camera is unavailable or permission was denied.',true);}};
+  $('camera-stop').onclick=()=>{if(state.cameraRecorder&&state.cameraRecorder.state==='recording')state.cameraRecorder.stop();};
+  $('process-media').onclick=async()=>{const file=$('teacher-video').files[0]||state.capturedVideo;if(!file){setStatus('media-status','Choose a video or record the low-bandwidth camera first.',true);return;} $('process-media').disabled=true;setStatus('media-status',`Streaming ${Math.ceil(file.size/1048576)} MiB locally, then preparing low-bandwidth model media…`);try{const session=await api('/api/teacher/sessions',{title:$('title').value,domain:$('domain').value,learner_goal:$('goal').value,constraints:[],speech_mode:$('speech-mode').value});state.teacherSessionId=session.session_id;localStorage.setItem('byfeelTeacherSession',session.session_id);$('resume-id').value=session.session_id;const review=await streamVideo(session.session_id,file);renderMedia(review);setStatus('media-status',`Review required · session ${session.session_id} · model payload ${Math.ceil((review.model_media?.payload_bytes||0)/1024)} KiB`);}catch(e){setStatus('media-status',e.message,true);}finally{$('process-media').disabled=false;}};
+  $('seed-demo').onclick=async()=>{setStatus('media-status','Loading deterministic local fixture…');try{const out=await api('/api/demo/seeded-rehearsal');renderProcedure(out);if(out.gate_c){state.gateCExperimentId=out.gate_c.experiment_id;await loadGateCExperiment(state.gateCExperimentId);}setStatus('media-status','Seeded fixture loaded · 0 model calls · excluded from Gate A and Gate C.');}catch(e){setStatus('media-status',e.message,true);}};
   $('resume').onclick=async()=>{try{const id=$('resume-id').value.trim();const out=await api(`/api/teacher/sessions/${id}`,undefined,'GET');state.teacherSessionId=id;localStorage.setItem('byfeelTeacherSession',id);if(out.media_review)renderMedia(out.media_review);if(out.session.status==='facts_approved')$('extract').disabled=false;if(out.procedure&&out.probe_run)renderProcedure({procedure:out.procedure,probe_run:out.probe_run});setStatus('media-status',`Resumed ${id} · ${out.session.status}`);}catch(e){setStatus('media-status',e.message,true);}};
   $('approve-facts').onclick=async()=>{try{await api(`/api/teacher/sessions/${state.teacherSessionId}/factual-approval`,{approved_factual_record:$('factual-record').value});$('approve-facts').disabled=true;$('extract').disabled=false;setStatus('facts-status','Immutable factual approval recorded. Extraction is now allowed.');}catch(e){setStatus('facts-status',e.message,true);}};
   $('extract').onclick=async()=>{$('extract').disabled=true;setStatus('facts-status','Teaching Partner is extracting, then launching a fresh blind probe…');try{renderProcedure(await api(`/api/teacher/sessions/${state.teacherSessionId}/extract`));setStatus('facts-status','Procedure extracted from the approved record only.');}catch(e){setStatus('facts-status',e.message,true);$('extract').disabled=false;}};

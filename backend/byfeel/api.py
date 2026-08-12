@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from .adk_runtime import AdkLearnerCoachRuntime, AdkProbeRuntime, AdkTeachingPartnerRuntime
 from .evidence import EvidenceStore, InMemoryEvidenceStore
+from .gate_c import GateCExperimentRunner
 from .gemini import ByFeelModelRouter, GeminiStructuredClient
 from .media_ingest import MediaDraft
 from .models import (
@@ -24,6 +25,12 @@ from .models import (
     BlockerReview,
     BlockerReviewDecision,
     EvidenceRef,
+    GateCArm,
+    GateCArmRun,
+    GateCAttemptResult,
+    GateCAttestation,
+    GateCComparisonReport,
+    GateCExperiment,
     LearnerObservation,
     LearnerProgress,
     RepairOutcome,
@@ -31,7 +38,7 @@ from .models import (
     TeachingOutcome,
 )
 from .repositories import ConflictError, InMemoryRepository, NotFoundError
-from .service import ByFeelService
+from .service import STREAM_VIDEO_UPLOAD_LIMIT_BYTES, ByFeelService
 
 APP_VERSION = "0.3.0"
 
@@ -46,6 +53,13 @@ def media_review_payload(session_id: str, draft: MediaDraft) -> dict[str, object
         "speech_mode": draft.speech_mode.value,
         "sampling_strategy": draft.sampling_strategy,
         "metadata": draft.metadata.model_dump(mode="json"),
+        "model_media": {
+            "strategy": draft.sampling_strategy,
+            "source_media_sent_to_model": draft.source_media_sent_to_model,
+            "low_bandwidth_proxy_used": draft.low_bandwidth_proxy_path is not None,
+            "payload_bytes": draft.model_payload_bytes,
+            "payload_limit_bytes": draft.model_payload_limit_bytes,
+        },
         "frames": [
             {
                 "sample_id": sample.sample_id,
@@ -94,6 +108,34 @@ class TeacherVideoRequest(BaseModel):
 
 class FactualApprovalRequest(BaseModel):
     approved_factual_record: str = Field(min_length=20, max_length=20000)
+
+
+class CreateGateCExperimentRequest(BaseModel):
+    learner_pseudonym: str = Field(
+        min_length=3,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$",
+    )
+    procedure_id: str = Field(min_length=1, max_length=200)
+    baseline_version_id: str = Field(min_length=1, max_length=200)
+    byfeel_version_id: str = Field(min_length=1, max_length=200)
+    checkpoint_step_id: str = Field(min_length=1, max_length=200)
+    deliberate_incorrect_state: str = Field(min_length=10, max_length=2000)
+    safety_confirmed: bool = False
+
+
+class GateCAttemptRequest(BaseModel):
+    description: str = Field(min_length=1, max_length=4000)
+    is_deliberate_incorrect: bool = False
+    is_correction: bool = False
+    evidence: EvidenceRef | None = None
+
+
+class GateCAttestationRequest(BaseModel):
+    fresh_learner_confirmed: bool = False
+    teacher_procedure_confirmed: bool = False
+    recorded_without_personal_data: bool = False
+    reviewer_note: str = Field(min_length=10, max_length=4000)
 
 
 def build_local_components() -> tuple[ByFeelService, EvidenceStore]:
@@ -147,6 +189,7 @@ def create_app(
     app = FastAPI(title="ByFeel local MVP", version=APP_VERSION)
     app.state.byfeel_service = service
     app.state.evidence_store = evidence_store or InMemoryEvidenceStore()
+    app.state.gate_c_runner = None
 
     def get_service() -> ByFeelService:
         if app.state.byfeel_service is None:
@@ -156,6 +199,15 @@ def create_app(
     def get_evidence_store() -> EvidenceStore:
         get_service()
         return app.state.evidence_store
+
+    def get_gate_c_runner() -> GateCExperimentRunner:
+        if app.state.gate_c_runner is None:
+            service = get_service()
+            app.state.gate_c_runner = GateCExperimentRunner(
+                repository=service.repository,
+                learner_service=service,
+            )
+        return app.state.gate_c_runner
 
     @app.middleware("http")
     async def request_context(request: Request, call_next):
@@ -219,9 +271,13 @@ def create_app(
     def create_teacher_session(request: CreateTeacherSessionRequest) -> TeacherSession:
         return get_service().create_teacher_session(**request.model_dump())
 
-    @app.post("/api/demo/seeded-rehearsal", response_model=TeachingOutcome)
-    def seeded_rehearsal() -> TeachingOutcome:
-        return get_service().seed_rehearsal()
+    @app.post("/api/demo/seeded-rehearsal")
+    def seeded_rehearsal() -> dict[str, object]:
+        outcome = get_service().seed_rehearsal()
+        report = get_gate_c_runner().seed_rehearsal(outcome.procedure.id)
+        payload = outcome.model_dump(mode="json")
+        payload["gate_c"] = report.model_dump(mode="json")
+        return payload
 
     @app.get("/api/teacher/sessions/{session_id}")
     def teacher_session(session_id: str):
@@ -255,6 +311,36 @@ def create_app(
             video=video,
             content_type=request.content_type,
         )
+        return media_review_payload(session_id, draft)
+
+    @app.post("/api/teacher/sessions/{session_id}/media-stream")
+    async def stream_teacher_media(session_id: str, request: Request):
+        content_type = request.headers.get("content-type", "").split(";", 1)[0].strip()
+        content_length = request.headers.get("content-length")
+        if content_length is not None and int(content_length) > STREAM_VIDEO_UPLOAD_LIMIT_BYTES:
+            raise ValueError("teacher video exceeds the 512 MiB streaming limit")
+        service = get_service()
+        source = service.begin_teacher_video_upload(session_id, content_type=content_type)
+        received = 0
+        stream_complete = False
+        try:
+            with source.open("xb") as destination:
+                async for chunk in request.stream():
+                    received += len(chunk)
+                    if received > STREAM_VIDEO_UPLOAD_LIMIT_BYTES:
+                        raise ValueError("teacher video exceeds the 512 MiB streaming limit")
+                    destination.write(chunk)
+            stream_complete = True
+            draft = service.finish_teacher_video_upload(
+                session_id,
+                source=source,
+                content_type=content_type,
+            )
+        except Exception as exc:
+            service.fail_teacher_video_upload(session_id, exc)
+            if not stream_complete and source.exists():
+                source.unlink()
+            raise
         return media_review_payload(session_id, draft)
 
     @app.get("/api/teacher/sessions/{session_id}/frames/{sample_id}")
@@ -329,10 +415,51 @@ def create_app(
     def events(session_id: str):
         return get_service().repository.list_learner_events(session_id)
 
+    @app.post("/api/gate-c/experiments", response_model=GateCExperiment)
+    def create_gate_c_experiment(request: CreateGateCExperimentRequest) -> GateCExperiment:
+        return get_gate_c_runner().create_experiment(**request.model_dump())
+
+    @app.get("/api/gate-c/experiments/{experiment_id}")
+    def gate_c_experiment(experiment_id: str) -> dict[str, object]:
+        return get_gate_c_runner().snapshot(experiment_id)
+
+    @app.get("/api/gate-c/experiments/{experiment_id}/report", response_model=GateCComparisonReport)
+    def gate_c_report(experiment_id: str) -> GateCComparisonReport:
+        return get_gate_c_runner().report(experiment_id)
+
+    @app.post(
+        "/api/gate-c/experiments/{experiment_id}/arms/{arm}/start",
+        response_model=GateCArmRun,
+    )
+    def start_gate_c_arm(experiment_id: str, arm: GateCArm) -> GateCArmRun:
+        return get_gate_c_runner().start_arm(experiment_id, arm)
+
+    @app.post("/api/gate-c/arms/{arm_run_id}/attempts", response_model=GateCAttemptResult)
+    def record_gate_c_attempt(arm_run_id: str, request: GateCAttemptRequest) -> GateCAttemptResult:
+        return get_gate_c_runner().record_attempt(
+            arm_run_id,
+            description=request.description,
+            evidence=request.evidence,
+            is_deliberate_incorrect=request.is_deliberate_incorrect,
+            is_correction=request.is_correction,
+        )
+
+    @app.post("/api/gate-c/arms/{arm_run_id}/finalize", response_model=GateCArmRun)
+    def finalize_gate_c_arm(arm_run_id: str) -> GateCArmRun:
+        return get_gate_c_runner().finalize_arm(arm_run_id)
+
+    @app.post(
+        "/api/gate-c/experiments/{experiment_id}/attestation",
+        response_model=GateCAttestation,
+    )
+    def attest_gate_c(experiment_id: str, request: GateCAttestationRequest) -> GateCAttestation:
+        return get_gate_c_runner().attest(experiment_id, **request.model_dump())
+
     @app.get("/api/judge/evidence/{procedure_id}")
     def judge_evidence(procedure_id: str):
         repository = get_service().repository
         repository.get_procedure(procedure_id)
+        gate_c_experiments = repository.list_gate_c_experiments(procedure_id)
         return {
             "gate_a": {
                 "status": "incomplete",
@@ -350,6 +477,9 @@ def create_app(
             "corrections": repository.list_corrections(procedure_id),
             "agent_runs": repository.list_agent_runs(procedure_id),
             "audit_events": repository.list_audit_events(procedure_id),
+            "gate_c": [
+                get_gate_c_runner().report(item.experiment_id) for item in gate_c_experiments
+            ],
             "blindness_boundary": {
                 "probe_input": "frozen LearnerProcedure projection",
                 "excluded": [
