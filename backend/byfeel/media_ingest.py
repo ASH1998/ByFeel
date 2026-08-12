@@ -11,11 +11,18 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from hashlib import sha256
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 from pydantic import Field, model_validator
 
 from .models import StrictModel, TeacherDemo
+
+LARGE_SOURCE_THRESHOLD_BYTES = 50 * 1024 * 1024
+MODEL_FRAME_WIDTH = 512
+MODEL_PROXY_WIDTH = 640
+MODEL_PROXY_FPS = 8
+MODEL_AUDIO_SAMPLE_RATE = 16_000
+MAX_MODEL_MEDIA_BYTES = 5 * 1024 * 1024
 
 
 class SpeechMode(StrEnum):
@@ -30,6 +37,7 @@ class MediaMetadata(StrictModel):
     height: int = Field(gt=0)
     frames_per_second: float = Field(gt=0)
     audio_stream_present: bool
+    source_size_bytes: int = Field(default=0, ge=0)
 
 
 class FrameSample(StrictModel):
@@ -86,6 +94,10 @@ class MediaDraft(StrictModel):
     metadata: MediaMetadata
     frame_samples: list[FrameSample]
     extracted_audio_path: str | None = None
+    low_bandwidth_proxy_path: str | None = None
+    model_payload_bytes: int = Field(default=0, ge=0)
+    model_payload_limit_bytes: int = Field(default=MAX_MODEL_MEDIA_BYTES, ge=1)
+    source_media_sent_to_model: Literal[False] = False
     analysis_model: str
     analysis: MediaAnalysis
     human_approval_required: bool = True
@@ -180,7 +192,46 @@ class FfmpegMediaExtractor:
             audio_stream_present=any(
                 stream["codec_type"] == "audio" for stream in payload["streams"]
             ),
+            source_size_bytes=source.stat().st_size,
         )
+
+    def _low_bandwidth_source(
+        self,
+        source: Path,
+        output: Path,
+        metadata: MediaMetadata,
+    ) -> Path:
+        if metadata.source_size_bytes < LARGE_SOURCE_THRESHOLD_BYTES:
+            return source
+        proxy = output / "model-proxy.mp4"
+        subprocess.run(
+            [
+                *self._ffmpeg,
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                self._path(source),
+                "-map",
+                "0:v:0",
+                "-an",
+                "-vf",
+                f"fps={MODEL_PROXY_FPS},scale={MODEL_PROXY_WIDTH}:-2:flags=area",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "32",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                self._path(proxy),
+            ],
+            check=True,
+        )
+        return proxy
 
     def extract(
         self,
@@ -193,6 +244,7 @@ class FfmpegMediaExtractor:
     ) -> tuple[list[FrameSample], Path | None]:
         frames_dir = output / "frames"
         frames_dir.mkdir(parents=True, exist_ok=False)
+        sampling_source = self._low_bandwidth_source(source, output, metadata)
         samples: list[FrameSample] = []
         for index in range(frame_count):
             timestamp = metadata.duration_seconds * (index + 0.5) / frame_count
@@ -206,13 +258,13 @@ class FfmpegMediaExtractor:
                     "-ss",
                     f"{timestamp:.3f}",
                     "-i",
-                    self._path(source),
+                    self._path(sampling_source),
                     "-frames:v",
                     "1",
                     "-vf",
-                    "scale=720:-2",
+                    f"scale={MODEL_FRAME_WIDTH}:-2:flags=area",
                     "-q:v",
-                    "2",
+                    "7",
                     self._path(target),
                 ],
                 check=True,
@@ -240,6 +292,10 @@ class FfmpegMediaExtractor:
                     "-vn",
                     "-c:a",
                     "pcm_s16le",
+                    "-ac",
+                    "1",
+                    "-ar",
+                    str(MODEL_AUDIO_SAMPLE_RATE),
                     self._path(audio),
                 ],
                 check=True,
@@ -291,6 +347,11 @@ def analyze_teacher_media(
     media = [(Path(sample.path).read_bytes(), "image/jpeg") for sample in samples]
     if audio is not None:
         media.append((audio.read_bytes(), "audio/wav"))
+    model_payload_bytes = sum(len(data) for data, _ in media)
+    if any(content_type.startswith("video/") for _, content_type in media):
+        raise ValueError("raw or proxy video must never be included in model media")
+    if model_payload_bytes > MAX_MODEL_MEDIA_BYTES:
+        raise ValueError("sampled model media exceeds the 5 MiB low-bandwidth payload limit")
     analysis = client.generate_with_media(
         system=MEDIA_ANALYSIS_SYSTEM,
         prompt=prompt,
@@ -314,10 +375,23 @@ def analyze_teacher_media(
         learner_goal=learner_goal,
         constraints=constraints,
         speech_mode=speech_mode,
-        sampling_strategy=f"uniform-bounded-{frame_count}-frames",
+        sampling_strategy=(
+            f"low-bandwidth-proxy-{MODEL_PROXY_WIDTH}px-{MODEL_PROXY_FPS}fps-"
+            f"uniform-{frame_count}-frames"
+            if metadata.source_size_bytes >= LARGE_SOURCE_THRESHOLD_BYTES
+            else f"low-bandwidth-uniform-{frame_count}-frames"
+        ),
         metadata=metadata,
         frame_samples=samples,
         extracted_audio_path=str(audio) if audio else None,
+        low_bandwidth_proxy_path=(
+            str(run_dir / "model-proxy.mp4")
+            if metadata.source_size_bytes >= LARGE_SOURCE_THRESHOLD_BYTES
+            else None
+        ),
+        model_payload_bytes=model_payload_bytes,
+        model_payload_limit_bytes=MAX_MODEL_MEDIA_BYTES,
+        source_media_sent_to_model=False,
         analysis_model=client.model,
         analysis=analysis,
     )

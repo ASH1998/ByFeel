@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from byfeel.media_ingest import (
+    MAX_MODEL_MEDIA_BYTES,
     MEDIA_ANALYSIS_SYSTEM,
     DemonstrationEvent,
     FrameObservation,
@@ -123,6 +124,9 @@ def test_silent_ingest_sends_frames_without_audio_and_requires_approval(tmp_path
     ]
     assert draft.extracted_audio_path is None
     assert draft.human_approval_required is True
+    assert draft.source_media_sent_to_model is False
+    assert draft.model_payload_bytes == sum(len(data) for data, _ in client.media)
+    assert all(not content_type.startswith("video/") for _, content_type in client.media)
 
 
 def test_spoken_ingest_sends_frames_and_audio(tmp_path: Path) -> None:
@@ -202,7 +206,38 @@ def test_duration_aware_sampling_is_bounded_and_can_be_overridden(tmp_path: Path
     )
 
     assert extractor.frame_count == 9
-    assert draft.sampling_strategy == "uniform-bounded-9-frames"
+    assert draft.sampling_strategy == "low-bandwidth-uniform-9-frames"
+
+
+def test_ingest_rejects_model_media_above_low_bandwidth_cap(tmp_path: Path) -> None:
+    class OversizedExtractor(FakeExtractor):
+        def extract(self, source, output, metadata, *, frame_count=9, include_audio):
+            samples, audio = super().extract(
+                source,
+                output,
+                metadata,
+                frame_count=frame_count,
+                include_audio=include_audio,
+            )
+            Path(samples[0].path).write_bytes(b"x" * (MAX_MODEL_MEDIA_BYTES + 1))
+            return samples, audio
+
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"video")
+    run = tmp_path / "run-oversized"
+    run.mkdir()
+    with pytest.raises(ValueError, match="5 MiB low-bandwidth payload limit"):
+        analyze_teacher_media(
+            client=FakeMediaClient(),
+            source=source,
+            run_dir=run,
+            title="Test demo",
+            domain="test",
+            learner_goal="Finish safely",
+            constraints=[],
+            speech_mode=SpeechMode.SILENT,
+            extractor=OversizedExtractor(),
+        )
 
 
 def test_spoken_media_prompt_preserves_decision_rules_not_generic_summary() -> None:

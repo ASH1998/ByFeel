@@ -67,6 +67,7 @@ Desktop.ini
 
 # Local experiment outputs (may contain raw demonstrations)
 runs/
+experiments/vids/
 experiments/gate_a/demo.json
 experiments/gate_a/*.local.json
 
