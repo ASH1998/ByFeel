@@ -19,6 +19,7 @@ from .experiment import GateAExperiment, StructuredClient
 from .media_ingest import MediaDraft, MultimodalClient, SpeechMode, analyze_teacher_media
 from .models import (
     ApprovedDemonstration,
+    ApprovedTeacherIntervention,
     AuditEvent,
     BlockerReview,
     BlockerReviewDecision,
@@ -54,6 +55,15 @@ from .models import (
 )
 from .prompts import PROBE_SYSTEM, probe_prompt
 from .repositories import ByFeelRepository, NotFoundError
+
+LEGACY_VIDEO_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024
+STREAM_VIDEO_UPLOAD_LIMIT_BYTES = 512 * 1024 * 1024
+TEACHER_VIDEO_TYPES = {
+    "video/mp4": ".mp4",
+    "video/webm": ".webm",
+    "video/quicktime": ".mov",
+    "video/x-matroska": ".mkv",
+}
 
 
 class CheckpointEvaluator(Protocol):
@@ -138,19 +148,29 @@ class ByFeelService:
         video: bytes,
         content_type: str,
     ) -> MediaDraft:
-        if self._media_client is None:
-            raise RuntimeError("teacher media processing is not configured")
-        allowed_types = {
-            "video/mp4": ".mp4",
-            "video/webm": ".webm",
-            "video/quicktime": ".mov",
-        }
-        if content_type not in allowed_types:
-            raise ValueError("teacher video must be MP4, WebM, or QuickTime")
         if not video:
             raise ValueError("teacher video cannot be empty")
-        if len(video) > 50 * 1024 * 1024:
+        if len(video) > LEGACY_VIDEO_UPLOAD_LIMIT_BYTES:
             raise ValueError("teacher video exceeds the 50 MiB limit")
+        source = self.begin_teacher_video_upload(session_id, content_type=content_type)
+        try:
+            source.write_bytes(video)
+        except Exception as exc:
+            self.fail_teacher_video_upload(session_id, exc)
+            raise
+        return self.finish_teacher_video_upload(
+            session_id,
+            source=source,
+            content_type=content_type,
+        )
+
+    def begin_teacher_video_upload(self, session_id: str, *, content_type: str) -> Path:
+        if self._media_client is None:
+            raise RuntimeError("teacher media processing is not configured")
+        try:
+            extension = TEACHER_VIDEO_TYPES[content_type]
+        except KeyError as exc:
+            raise ValueError("teacher video must be MP4, WebM, QuickTime, or Matroska") from exc
         session = self.repository.get_teacher_session(session_id)
         if session.status != TeacherSessionStatus.AWAITING_MEDIA:
             raise ValueError("this teacher session already received media")
@@ -158,14 +178,35 @@ class ByFeelService:
         session.updated_at = datetime.now(UTC)
         self.repository.save_teacher_session(session)
         run_dir = self._run_root / session.session_id
+        run_dir.mkdir(parents=True, exist_ok=False)
+        return run_dir / f"teacher-source{extension}"
+
+    def finish_teacher_video_upload(
+        self,
+        session_id: str,
+        *,
+        source: Path,
+        content_type: str,
+    ) -> MediaDraft:
         try:
-            run_dir.mkdir(parents=True, exist_ok=False)
-            source = run_dir / f"teacher-source{allowed_types[content_type]}"
-            source.write_bytes(video)
+            extension = TEACHER_VIDEO_TYPES[content_type]
+        except KeyError as exc:
+            raise ValueError("teacher video must be MP4, WebM, QuickTime, or Matroska") from exc
+        session = self.repository.get_teacher_session(session_id)
+        if session.status != TeacherSessionStatus.PROCESSING:
+            raise ValueError("teacher media upload was not reserved for processing")
+        expected_source = self._run_root / session.session_id / f"teacher-source{extension}"
+        if source.resolve() != expected_source.resolve():
+            raise ValueError("teacher media source is outside its reserved local session path")
+        if not source.exists() or source.stat().st_size == 0:
+            raise ValueError("teacher video cannot be empty")
+        if source.stat().st_size > STREAM_VIDEO_UPLOAD_LIMIT_BYTES:
+            raise ValueError("teacher video exceeds the 512 MiB streaming limit")
+        try:
             draft = self._media_analyzer(
                 client=self._media_client,
                 source=source,
-                run_dir=run_dir,
+                run_dir=source.parent,
                 title=session.title,
                 domain=session.domain,
                 learner_goal=session.learner_goal,
@@ -173,10 +214,7 @@ class ByFeelService:
                 speech_mode=session.speech_mode,
             )
         except Exception as exc:
-            session.status = TeacherSessionStatus.FAILED
-            session.failure_message = str(exc)[:500]
-            session.updated_at = datetime.now(UTC)
-            self.repository.save_teacher_session(session)
+            self.fail_teacher_video_upload(session_id, exc)
             raise
         self.repository.save_media_draft(draft)
         session.status = TeacherSessionStatus.REVIEW_REQUIRED
@@ -184,6 +222,13 @@ class ByFeelService:
         session.updated_at = datetime.now(UTC)
         self.repository.save_teacher_session(session)
         return draft
+
+    def fail_teacher_video_upload(self, session_id: str, error: Exception) -> None:
+        session = self.repository.get_teacher_session(session_id)
+        session.status = TeacherSessionStatus.FAILED
+        session.failure_message = str(error)[:500]
+        session.updated_at = datetime.now(UTC)
+        self.repository.save_teacher_session(session)
 
     def approve_factual_record(
         self, session_id: str, approved_factual_record: str
@@ -583,43 +628,87 @@ class ByFeelService:
         if procedure.status != ProcedureStatus.LEARNER_READY:
             raise ValueError("a learner session requires a learner-ready procedure")
         artifact = procedure.learner_view()
+        version_id = None
+        for version in reversed(self.repository.list_procedure_versions(procedure_id)):
+            if version.learner_artifact_hash == artifact.content_hash():
+                version_id = version.version_id
+                break
         session = LearnerSession(
             procedure_id=procedure_id,
+            procedure_version_id=version_id,
             procedure_hash=artifact.content_hash(),
         )
         self.repository.save_learner_session(session)
         return LearnerProgress(session=session, current_step=artifact.steps[0])
 
-    def checkpoint(self, session_id: str, observation: LearnerObservation) -> LearnerProgress:
+    def start_learner_for_version(self, procedure_version_id: str) -> LearnerProgress:
+        version = self.repository.get_procedure_version(procedure_version_id)
+        artifact = version.learner_artifact()
+        session = LearnerSession(
+            procedure_id=version.procedure_id,
+            procedure_version_id=version.version_id,
+            procedure_hash=artifact.content_hash(),
+        )
+        self.repository.save_learner_session(session)
+        return LearnerProgress(session=session, current_step=artifact.steps[0])
+
+    def checkpoint(
+        self,
+        session_id: str,
+        observation: LearnerObservation,
+        *,
+        approved_intervention: ApprovedTeacherIntervention | None = None,
+    ) -> LearnerProgress:
         session = self.repository.get_learner_session(session_id)
         if session.status != "active":
             raise ValueError("learner session is not active")
-        procedure = self.repository.get_procedure(session.procedure_id).learner_view()
+        if session.procedure_version_id is not None:
+            version = self.repository.get_procedure_version(session.procedure_version_id)
+            procedure = version.learner_artifact()
+        else:
+            procedure = self.repository.get_procedure(session.procedure_id).learner_view()
         if procedure.content_hash() != session.procedure_hash:
             raise ValueError("procedure changed after this learner session started")
         step = procedure.steps[session.current_step_order - 1]
         if observation.step_id != step.step_id:
             raise ValueError("observation does not match the current learner step")
 
+        if approved_intervention is not None:
+            self._validate_approved_intervention(
+                session=session,
+                procedure=procedure,
+                step=step,
+                intervention=approved_intervention,
+            )
+
         if procedure.id.startswith("seeded-rehearsal-"):
             incorrect = any(
                 marker in observation.description.casefold()
                 for marker in ("springs", "opens", "misaligned", "not flat", "uneven")
             )
+            has_approved_cue = bool(step.completion_conditions)
             checkpoint_execution = CheckpointEvaluation(
-                decision=(CheckpointDecision.BLOCK if incorrect else CheckpointDecision.ADVANCE),
+                decision=(
+                    CheckpointDecision.BLOCK
+                    if incorrect and has_approved_cue
+                    else CheckpointDecision.HUMAN_CONFIRMATION
+                    if incorrect
+                    else CheckpointDecision.ADVANCE
+                ),
                 confidence=1,
                 explanation=(
                     "The seeded learner state misses the teacher-approved visible cue."
+                    if incorrect and has_approved_cue
+                    else "The static seeded instructions do not provide a safe visible cue."
                     if incorrect
                     else "The seeded learner state satisfies the approved visible cue."
                 ),
                 corrective_guidance=(
                     "Press again until the crease stays flat after your hand is removed."
-                    if incorrect
+                    if incorrect and has_approved_cue
                     else None
                 ),
-                teacher_derived=True,
+                teacher_derived=has_approved_cue,
             )
         else:
             checkpoint_execution = self._checkpoint_evaluator.evaluate(
@@ -634,11 +723,41 @@ class ByFeelService:
             )
         else:
             evaluation = checkpoint_execution
+        requested_decision = evaluation.decision
+        if approved_intervention is not None and evaluation.decision == CheckpointDecision.BLOCK:
+            evaluation = evaluation.model_copy(
+                update={
+                    "corrective_guidance": approved_intervention.guidance,
+                    "teacher_derived": True,
+                }
+            )
+        unsafe_advance_suppressed = (
+            observation.is_deliberate_incorrect and requested_decision == CheckpointDecision.ADVANCE
+        )
+        if unsafe_advance_suppressed:
+            evaluation = CheckpointEvaluation(
+                decision=CheckpointDecision.HUMAN_CONFIRMATION,
+                visual_state=evaluation.visual_state,
+                confidence=evaluation.confidence,
+                explanation=(
+                    "Advance was suppressed because the facilitator marked this as the "
+                    "deliberate incorrect state."
+                ),
+                checkpoint_id=evaluation.checkpoint_id,
+                teacher_derived=False,
+            )
+        event_time = datetime.now(UTC)
         event = LearnerEvent(
             session_id=session_id,
             step_id=step.step_id,
             observation=observation,
             evaluation=evaluation,
+            attempt_number=session.attempts + 1,
+            elapsed_ms=max(0, int((event_time - session.created_at).total_seconds() * 1000)),
+            requested_decision=requested_decision,
+            unsafe_advance_suppressed=unsafe_advance_suppressed,
+            created_at=event_time,
+            updated_at=event_time,
         )
         session.attempts += 1
         if evaluation.decision == CheckpointDecision.ADVANCE:
@@ -649,7 +768,7 @@ class ByFeelService:
                 session.current_step_order += 1
         elif evaluation.decision == CheckpointDecision.HUMAN_CONFIRMATION:
             session.status = "needs_human"
-        session.updated_at = datetime.now(UTC)
+        session.updated_at = event_time
         self.repository.append_learner_event(event)
         self.repository.save_learner_session(session)
         self._audit(
@@ -669,7 +788,12 @@ class ByFeelService:
 
     def resume_learner(self, session_id: str) -> LearnerProgress:
         session = self.repository.get_learner_session(session_id)
-        procedure = self.repository.get_procedure(session.procedure_id).learner_view()
+        if session.procedure_version_id is not None:
+            procedure = self.repository.get_procedure_version(
+                session.procedure_version_id
+            ).learner_artifact()
+        else:
+            procedure = self.repository.get_procedure(session.procedure_id).learner_view()
         if procedure.content_hash() != session.procedure_hash:
             raise ValueError("procedure changed after this learner session started")
         current = (
@@ -691,22 +815,52 @@ class ByFeelService:
         except StopIteration as exc:
             raise ValueError(f"unknown changed step {step_id!r}") from exc
 
+    def _validate_approved_intervention(
+        self,
+        *,
+        session: LearnerSession,
+        procedure: LearnerProcedure,
+        step: LearnerStep,
+        intervention: ApprovedTeacherIntervention,
+    ) -> None:
+        if session.procedure_version_id != intervention.procedure_version_id:
+            raise ValueError("intervention provenance does not match the learner procedure version")
+        version = self.repository.get_procedure_version(intervention.procedure_version_id)
+        if version.reason != "learner_approved":
+            raise ValueError("only a learner-approved procedure version may guide a learner")
+        if version.procedure_id != session.procedure_id:
+            raise ValueError("intervention provenance does not match the learner procedure")
+        if intervention.step_id != step.step_id:
+            raise ValueError("intervention provenance does not match the current learner step")
+        if version.learner_artifact().content_hash() != session.procedure_hash:
+            raise ValueError("intervention provenance does not match the frozen learner artifact")
+        correction = self.repository.get_correction(intervention.correction_id)
+        if correction.procedure_id != session.procedure_id or correction.step_id != step.step_id:
+            raise ValueError("intervention correction provenance does not match the learner step")
+        version_step = self._step(version.procedure, step.step_id)
+        if correction.new_state != version_step.model_dump(mode="json"):
+            raise ValueError(
+                "intervention correction does not match the approved procedure version"
+            )
+        if intervention.guidance != correction.teacher_feedback:
+            raise ValueError("intervention guidance must be the approved teacher feedback verbatim")
+
     def _version(
         self,
         procedure: Procedure,
         reason: str,
-    ) -> None:
+    ) -> ProcedureVersion:
         learner_artifact = procedure.model_copy(
             update={"status": ProcedureStatus.LEARNER_READY}
         ).learner_view()
-        self.repository.append_procedure_version(
-            ProcedureVersion(
-                procedure_id=procedure.id,
-                learner_artifact_hash=learner_artifact.content_hash(),
-                reason=reason,
-                procedure=procedure,
-            )
+        version = ProcedureVersion(
+            procedure_id=procedure.id,
+            learner_artifact_hash=learner_artifact.content_hash(),
+            reason=reason,
+            procedure=procedure,
         )
+        self.repository.append_procedure_version(version)
+        return version
 
     def _audit(
         self,
