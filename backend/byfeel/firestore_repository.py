@@ -10,6 +10,11 @@ from .models import (
     AuditEvent,
     BlockerReview,
     Correction,
+    GateCArmRun,
+    GateCAttempt,
+    GateCAttestation,
+    GateCExperiment,
+    GateCIntervention,
     LearnerEvent,
     LearnerSession,
     ProbeRun,
@@ -105,6 +110,12 @@ class FirestoreRepository:
         ]
         return sorted(values, key=lambda item: item.created_at)
 
+    def get_procedure_version(self, version_id: str) -> ProcedureVersion:
+        snapshot = self._collection("procedure_versions").document(version_id).get()
+        if not snapshot.exists:
+            raise NotFoundError(f"procedure version {version_id!r} was not found")
+        return ProcedureVersion.model_validate(snapshot.to_dict())
+
     def append_audit_event(self, event: AuditEvent) -> None:
         self._collection("audit_events").document(event.event_id).create(
             event.model_dump(mode="json")
@@ -194,6 +205,12 @@ class FirestoreRepository:
         ]
         return sorted(values, key=lambda item: item.created_at)
 
+    def get_correction(self, correction_id: str) -> Correction:
+        snapshot = self._collection("corrections").document(correction_id).get()
+        if not snapshot.exists:
+            raise NotFoundError(f"correction {correction_id!r} was not found")
+        return Correction.model_validate(snapshot.to_dict())
+
     def save_learner_session(self, session: LearnerSession) -> None:
         self._collection("learner_sessions").document(session.session_id).set(
             session.model_dump(mode="json")
@@ -217,3 +234,81 @@ class FirestoreRepository:
             if snapshot.to_dict().get("session_id") == session_id
         ]
         return sorted(values, key=lambda item: item.created_at)
+
+    def save_gate_c_experiment(self, experiment: GateCExperiment) -> None:
+        self._collection("gate_c_experiments").document(experiment.experiment_id).set(
+            experiment.model_dump(mode="json")
+        )
+
+    def get_gate_c_experiment(self, experiment_id: str) -> GateCExperiment:
+        snapshot = self._collection("gate_c_experiments").document(experiment_id).get()
+        if not snapshot.exists:
+            raise NotFoundError(f"Gate C experiment {experiment_id!r} was not found")
+        return GateCExperiment.model_validate(snapshot.to_dict())
+
+    def list_gate_c_experiments(self, procedure_id: str | None = None) -> list[GateCExperiment]:
+        values = [
+            GateCExperiment.model_validate(snapshot.to_dict())
+            for snapshot in self._collection("gate_c_experiments").stream()
+        ]
+        if procedure_id is not None:
+            values = [item for item in values if item.procedure_id == procedure_id]
+        return sorted(values, key=lambda item: item.created_at)
+
+    def save_gate_c_arm_run(self, arm_run: GateCArmRun) -> None:
+        self._collection("gate_c_arm_runs").document(arm_run.arm_run_id).set(
+            arm_run.model_dump(mode="json")
+        )
+
+    def get_gate_c_arm_run(self, arm_run_id: str) -> GateCArmRun:
+        snapshot = self._collection("gate_c_arm_runs").document(arm_run_id).get()
+        if not snapshot.exists:
+            raise NotFoundError(f"Gate C arm run {arm_run_id!r} was not found")
+        return GateCArmRun.model_validate(snapshot.to_dict())
+
+    def list_gate_c_arm_runs(self, experiment_id: str) -> list[GateCArmRun]:
+        values = [
+            GateCArmRun.model_validate(snapshot.to_dict())
+            for snapshot in self._collection("gate_c_arm_runs").stream()
+            if snapshot.to_dict().get("experiment_id") == experiment_id
+        ]
+        return sorted(values, key=lambda item: item.started_at)
+
+    def append_gate_c_attempt(self, attempt: GateCAttempt) -> None:
+        self._collection("gate_c_attempts").document(attempt.attempt_id).create(
+            attempt.model_dump(mode="json")
+        )
+
+    def list_gate_c_attempts(self, arm_run_id: str) -> list[GateCAttempt]:
+        values = [
+            GateCAttempt.model_validate(snapshot.to_dict())
+            for snapshot in self._collection("gate_c_attempts").stream()
+            if snapshot.to_dict().get("arm_run_id") == arm_run_id
+        ]
+        return sorted(values, key=lambda item: item.attempt_number)
+
+    def append_gate_c_intervention(self, intervention: GateCIntervention) -> None:
+        self._collection("gate_c_interventions").document(intervention.intervention_id).create(
+            intervention.model_dump(mode="json")
+        )
+
+    def list_gate_c_interventions(self, arm_run_id: str) -> list[GateCIntervention]:
+        values = [
+            GateCIntervention.model_validate(snapshot.to_dict())
+            for snapshot in self._collection("gate_c_interventions").stream()
+            if snapshot.to_dict().get("arm_run_id") == arm_run_id
+        ]
+        return sorted(values, key=lambda item: item.created_at)
+
+    def append_gate_c_attestation(self, attestation: GateCAttestation) -> None:
+        self._collection("gate_c_attestations").document(attestation.experiment_id).create(
+            attestation.model_dump(mode="json")
+        )
+
+    def get_gate_c_attestation(self, experiment_id: str) -> GateCAttestation:
+        snapshot = self._collection("gate_c_attestations").document(experiment_id).get()
+        if not snapshot.exists:
+            raise NotFoundError(
+                f"Gate C attestation for experiment {experiment_id!r} was not found"
+            )
+        return GateCAttestation.model_validate(snapshot.to_dict())

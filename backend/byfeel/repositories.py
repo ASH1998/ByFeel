@@ -15,6 +15,11 @@ from .models import (
     AuditEvent,
     BlockerReview,
     Correction,
+    GateCArmRun,
+    GateCAttempt,
+    GateCAttestation,
+    GateCExperiment,
+    GateCIntervention,
     LearnerEvent,
     LearnerSession,
     ProbeRun,
@@ -57,6 +62,8 @@ class ByFeelRepository(Protocol):
 
     def list_procedure_versions(self, procedure_id: str) -> list[ProcedureVersion]: ...
 
+    def get_procedure_version(self, version_id: str) -> ProcedureVersion: ...
+
     def append_audit_event(self, event: AuditEvent) -> None: ...
 
     def list_audit_events(self, procedure_id: str | None = None) -> list[AuditEvent]: ...
@@ -81,6 +88,8 @@ class ByFeelRepository(Protocol):
 
     def append_correction(self, correction: Correction) -> None: ...
 
+    def get_correction(self, correction_id: str) -> Correction: ...
+
     def list_corrections(self, procedure_id: str) -> list[Correction]: ...
 
     def save_learner_session(self, session: LearnerSession) -> None: ...
@@ -90,6 +99,30 @@ class ByFeelRepository(Protocol):
     def append_learner_event(self, event: LearnerEvent) -> None: ...
 
     def list_learner_events(self, session_id: str) -> list[LearnerEvent]: ...
+
+    def save_gate_c_experiment(self, experiment: GateCExperiment) -> None: ...
+
+    def get_gate_c_experiment(self, experiment_id: str) -> GateCExperiment: ...
+
+    def list_gate_c_experiments(self, procedure_id: str | None = None) -> list[GateCExperiment]: ...
+
+    def save_gate_c_arm_run(self, arm_run: GateCArmRun) -> None: ...
+
+    def get_gate_c_arm_run(self, arm_run_id: str) -> GateCArmRun: ...
+
+    def list_gate_c_arm_runs(self, experiment_id: str) -> list[GateCArmRun]: ...
+
+    def append_gate_c_attempt(self, attempt: GateCAttempt) -> None: ...
+
+    def list_gate_c_attempts(self, arm_run_id: str) -> list[GateCAttempt]: ...
+
+    def append_gate_c_intervention(self, intervention: GateCIntervention) -> None: ...
+
+    def list_gate_c_interventions(self, arm_run_id: str) -> list[GateCIntervention]: ...
+
+    def append_gate_c_attestation(self, attestation: GateCAttestation) -> None: ...
+
+    def get_gate_c_attestation(self, experiment_id: str) -> GateCAttestation: ...
 
 
 class InMemoryRepository:
@@ -106,6 +139,11 @@ class InMemoryRepository:
         self._corrections: dict[str, Correction] = {}
         self._sessions: dict[str, LearnerSession] = {}
         self._events: dict[str, LearnerEvent] = {}
+        self._gate_c_experiments: dict[str, GateCExperiment] = {}
+        self._gate_c_arm_runs: dict[str, GateCArmRun] = {}
+        self._gate_c_attempts: dict[str, GateCAttempt] = {}
+        self._gate_c_interventions: dict[str, GateCIntervention] = {}
+        self._gate_c_attestations: dict[str, GateCAttestation] = {}
         self._lock = RLock()
 
     @staticmethod
@@ -188,6 +226,13 @@ class InMemoryRepository:
                 if item.procedure_id == procedure_id
             ]
             return [self._copy(item) for item in sorted(values, key=lambda item: item.created_at)]
+
+    def get_procedure_version(self, version_id: str) -> ProcedureVersion:
+        with self._lock:
+            try:
+                return self._copy(self._procedure_versions[version_id])
+            except KeyError as exc:
+                raise NotFoundError(f"procedure version {version_id!r} was not found") from exc
 
     def append_audit_event(self, event: AuditEvent) -> None:
         with self._lock:
@@ -280,6 +325,13 @@ class InMemoryRepository:
             ]
             return [self._copy(item) for item in sorted(values, key=lambda item: item.created_at)]
 
+    def get_correction(self, correction_id: str) -> Correction:
+        with self._lock:
+            try:
+                return self._copy(self._corrections[correction_id])
+            except KeyError as exc:
+                raise NotFoundError(f"correction {correction_id!r} was not found") from exc
+
     def save_learner_session(self, session: LearnerSession) -> None:
         with self._lock:
             self._sessions[session.session_id] = self._copy(session)
@@ -301,3 +353,96 @@ class InMemoryRepository:
         with self._lock:
             values = [item for item in self._events.values() if item.session_id == session_id]
             return [self._copy(item) for item in sorted(values, key=lambda item: item.created_at)]
+
+    def save_gate_c_experiment(self, experiment: GateCExperiment) -> None:
+        with self._lock:
+            current = self._gate_c_experiments.get(experiment.experiment_id)
+            if current is not None:
+                immutable_current = current.model_copy(
+                    update={"status": experiment.status, "updated_at": experiment.updated_at}
+                )
+                if immutable_current.model_dump() != experiment.model_dump():
+                    raise ConflictError("Gate C experiment identity is immutable")
+            self._gate_c_experiments[experiment.experiment_id] = self._copy(experiment)
+
+    def get_gate_c_experiment(self, experiment_id: str) -> GateCExperiment:
+        with self._lock:
+            try:
+                return self._copy(self._gate_c_experiments[experiment_id])
+            except KeyError as exc:
+                raise NotFoundError(f"Gate C experiment {experiment_id!r} was not found") from exc
+
+    def list_gate_c_experiments(self, procedure_id: str | None = None) -> list[GateCExperiment]:
+        with self._lock:
+            values = list(self._gate_c_experiments.values())
+            if procedure_id is not None:
+                values = [item for item in values if item.procedure_id == procedure_id]
+            return [self._copy(item) for item in sorted(values, key=lambda item: item.created_at)]
+
+    def save_gate_c_arm_run(self, arm_run: GateCArmRun) -> None:
+        with self._lock:
+            current = self._gate_c_arm_runs.get(arm_run.arm_run_id)
+            if current is not None and current.status.value == "finalized":
+                raise ConflictError("finalized Gate C arm runs are immutable")
+            self._gate_c_arm_runs[arm_run.arm_run_id] = self._copy(arm_run)
+
+    def get_gate_c_arm_run(self, arm_run_id: str) -> GateCArmRun:
+        with self._lock:
+            try:
+                return self._copy(self._gate_c_arm_runs[arm_run_id])
+            except KeyError as exc:
+                raise NotFoundError(f"Gate C arm run {arm_run_id!r} was not found") from exc
+
+    def list_gate_c_arm_runs(self, experiment_id: str) -> list[GateCArmRun]:
+        with self._lock:
+            values = [
+                item
+                for item in self._gate_c_arm_runs.values()
+                if item.experiment_id == experiment_id
+            ]
+            return [self._copy(item) for item in sorted(values, key=lambda item: item.started_at)]
+
+    def append_gate_c_attempt(self, attempt: GateCAttempt) -> None:
+        with self._lock:
+            if attempt.attempt_id in self._gate_c_attempts:
+                raise ConflictError("Gate C learner attempts are append-only")
+            self._gate_c_attempts[attempt.attempt_id] = self._copy(attempt)
+
+    def list_gate_c_attempts(self, arm_run_id: str) -> list[GateCAttempt]:
+        with self._lock:
+            values = [
+                item for item in self._gate_c_attempts.values() if item.arm_run_id == arm_run_id
+            ]
+            return [
+                self._copy(item) for item in sorted(values, key=lambda item: item.attempt_number)
+            ]
+
+    def append_gate_c_intervention(self, intervention: GateCIntervention) -> None:
+        with self._lock:
+            if intervention.intervention_id in self._gate_c_interventions:
+                raise ConflictError("Gate C interventions are append-only")
+            self._gate_c_interventions[intervention.intervention_id] = self._copy(intervention)
+
+    def list_gate_c_interventions(self, arm_run_id: str) -> list[GateCIntervention]:
+        with self._lock:
+            values = [
+                item
+                for item in self._gate_c_interventions.values()
+                if item.arm_run_id == arm_run_id
+            ]
+            return [self._copy(item) for item in sorted(values, key=lambda item: item.created_at)]
+
+    def append_gate_c_attestation(self, attestation: GateCAttestation) -> None:
+        with self._lock:
+            if attestation.experiment_id in self._gate_c_attestations:
+                raise ConflictError("Gate C attestation is append-only")
+            self._gate_c_attestations[attestation.experiment_id] = self._copy(attestation)
+
+    def get_gate_c_attestation(self, experiment_id: str) -> GateCAttestation:
+        with self._lock:
+            try:
+                return self._copy(self._gate_c_attestations[experiment_id])
+            except KeyError as exc:
+                raise NotFoundError(
+                    f"Gate C attestation for experiment {experiment_id!r} was not found"
+                ) from exc
