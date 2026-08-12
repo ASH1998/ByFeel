@@ -20,6 +20,23 @@ application writes.
   Cloud Storage object reference; image bytes remain in Cloud Storage.
 - `audit_events/{event_id}` — append-only administrative and mutation audit events.
 
+## Gate C collections
+
+The local/test adapter adds namespaced collections for the transfer evidence:
+
+- gate_c_experiments — immutable arm/version identity plus experiment status.
+- gate_c_arm_runs — mutable facilitator-facing arm summary; once finalized it
+  is immutable.
+- gate_c_attempts — append-only learner attempts with requested versus safe
+  decisions, detection outcome, timing, and correction flags.
+- gate_c_interventions — append-only approved teacher-derived interventions
+  linked to a correction and exact procedure version.
+- gate_c_attestations — one append-only human evidence attestation per
+  experiment.
+
+These logical collections remain under the existing namespaced test root. No
+new cloud resource, index, or production path is created by the Gate C code.
+
 ## Boundaries
 
 - Store UTC timestamps, stable IDs, and `schema_version` on every document.
