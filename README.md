@@ -9,6 +9,7 @@ the learner sees updated guidance.
 
 ## See it first
 
+- [Watch the demo video](https://youtu.be/-USQMwSQLgM)
 - [Live demo](https://byfeel.ashutoshmishra.dev/)
 - [GitHub repository](https://github.com/ASH1998/ByFeel)
 - [Hackathon rules](https://allthingsagentichackathon.devpost.com/rules)
