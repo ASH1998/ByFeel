@@ -194,6 +194,11 @@ A recording preserves what happened.
 
 A transcript preserves what was said.
 
+For physical teaching, neither channel substitutes for the other. A voiced
+video requires verbatim audio transcription plus a visual action record. A
+silent video requires a visual action record and an explicit statement that the
+teacher did not speak. Audio alone cannot establish what was physically done.
+
 A checklist preserves sequence.
 
 But another person can still fail because the expert never articulated the hidden criterion.
@@ -460,6 +465,10 @@ The product principle does:
 ## Decision
 
 Use **event-driven snapshots**, not continuous Gemini video reasoning, for the MVP.
+
+Offline teacher-demo preparation may derive a human-reviewed event transcript
+from a bounded recording. That is distinct from continuous live inference: raw
+media stays on the teacher side and the blinded probe never receives it.
 
 The browser can still show a live camera preview.
 
@@ -1300,6 +1309,8 @@ MVP principles:
 
 - persist only explicit checkpoint media when possible;
 - avoid storing full raw video by default;
+- preserve whether a transcript came from speech, visual observation, or both;
+- require human approval before a media-derived transcript becomes procedure input;
 - show what is being saved;
 - support deletion;
 - keep procedure ownership explicit.
@@ -1450,15 +1461,16 @@ Fake reasoning outcomes are not.
 
 Do this before building the app.
 
-1. Record one 3-step demonstration.
-2. Generate learner-facing instructions.
-3. remove raw teacher context;
-4. give only learner-facing state to a fresh model;
-5. make it reason through the procedure;
-6. check whether it identifies a real missing execution criterion;
-7. ask teacher one clarification;
-8. update the procedure;
-9. rerun.
+1. Record three genuine demonstrations of the same safe 3–5 step task.
+2. For each recording, create and human-verify a factual speech/visual transcript.
+3. Generate learner-facing instructions.
+4. Remove raw teacher context.
+5. Give only learner-facing state to a fresh model.
+6. Make it reason through the procedure.
+7. Check whether it identifies a real missing execution criterion.
+8. Ask the teacher exactly one clarification.
+9. Update only the selected blocker.
+10. Rerun a fresh blinded probe.
 
 ### Success condition
 

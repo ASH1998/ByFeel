@@ -24,6 +24,7 @@ venv/
 env/
 *.egg-info/
 .pytest_cache/
+.pytest-tmp*/
 .mypy_cache/
 .ruff_cache/
 .coverage
@@ -66,8 +67,11 @@ Desktop.ini
 
 # Local experiment outputs (may contain raw demonstrations)
 runs/
+experiments/vids/
 experiments/gate_a/demo.json
 experiments/gate_a/*.local.json
 
 # Local cloud inventory and billing ledger
 cloud-ledger/
+videos/
+sites/

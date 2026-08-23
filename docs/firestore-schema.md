@@ -20,6 +20,23 @@ application writes.
   Cloud Storage object reference; image bytes remain in Cloud Storage.
 - `audit_events/{event_id}` — append-only administrative and mutation audit events.
 
+## Gate C collections
+
+The local/test adapter adds namespaced collections for the transfer evidence:
+
+- gate_c_experiments — immutable arm/version identity plus experiment status.
+- gate_c_arm_runs — mutable facilitator-facing arm summary; once finalized it
+  is immutable.
+- gate_c_attempts — append-only learner attempts with requested versus safe
+  decisions, detection outcome, timing, and correction flags.
+- gate_c_interventions — append-only approved teacher-derived interventions
+  linked to a correction and exact procedure version.
+- gate_c_attestations — one append-only human evidence attestation per
+  experiment.
+
+These logical collections remain under the existing namespaced test root. No
+new cloud resource, index, or production path is created by the Gate C code.
+
 ## Boundaries
 
 - Store UTC timestamps, stable IDs, and `schema_version` on every document.
@@ -31,3 +48,21 @@ application writes.
   implementation task.
 - Add indexes only when an implemented query requires them and after direct cloud
   approval.
+
+## Local MVP test-data boundary
+
+The implemented cloud adapter intentionally does not write the eventual
+production paths above. Local smoke/application data is hard-scoped beneath:
+
+```text
+byfeel_test_runs/{namespace}/procedures/{procedure_id}
+byfeel_test_runs/{namespace}/probe_runs/{probe_run_id}
+byfeel_test_runs/{namespace}/corrections/{correction_id}
+byfeel_test_runs/{namespace}/learner_sessions/{session_id}
+byfeel_test_runs/{namespace}/learner_events/{event_id}
+```
+
+The adapter reads the small namespace locally instead of issuing compound
+queries, so it requires no new Firestore indexes. It exposes no database,
+collection, document, or index deletion operation. Canonical production paths
+and transaction boundaries remain a later-phase decision.

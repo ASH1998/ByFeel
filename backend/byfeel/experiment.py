@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol, TypeVar
 from uuid import uuid4
@@ -13,6 +14,7 @@ from .models import (
     ProbeReport,
     ProbeStatus,
     Procedure,
+    ProcedureStatus,
     RepairResult,
     RunManifest,
     TeacherDemo,
@@ -40,10 +42,18 @@ class GateAExperiment:
         self.client = client
 
     def extract(self, demo: TeacherDemo) -> Procedure:
-        return self.client.generate(
+        extracted = self.client.generate(
             system=EXTRACTION_SYSTEM,
             prompt=extraction_prompt(demo),
             schema=Procedure,
+        )
+        now = datetime.now(UTC)
+        return extracted.model_copy(
+            update={
+                "status": ProcedureStatus.DRAFT,
+                "created_at": now,
+                "updated_at": now,
+            }
         )
 
     def probe(self, procedure: Procedure) -> ProbeReport:
@@ -96,7 +106,7 @@ def build_manifest(
         model=model,
         probe_before=before.status,
         probe_after=after.status,
-        gate_passed=(
+        status_transition_succeeded=(
             before.status == ProbeStatus.BLOCKED and after.status == ProbeStatus.UNBLOCKED
         ),
     )

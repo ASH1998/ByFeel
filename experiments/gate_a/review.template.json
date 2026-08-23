@@ -1,0 +1,40 @@
+{
+  "run_id": "REPLACE with saved run ID",
+  "demonstration_number": 1,
+  "same_task_confirmed": null,
+  "genuine_demonstration_confirmed": null,
+  "transcript_fidelity_confirmed": null,
+  "blindness_boundary_preserved": null,
+  "initial_probe": {
+    "genuine_execution_blocker": null,
+    "non_trivial": null,
+    "execution_relevant": null,
+    "independent_of_hidden_teacher_context": null,
+    "false_blockers": [],
+    "missed_gaps": [],
+    "reviewer_reasoning": ""
+  },
+  "clarification": {
+    "exactly_one_question_asked": null,
+    "answer_came_from_teacher": null,
+    "answer_contained_only_requested_information": null
+  },
+  "repair": {
+    "attempted": null,
+    "invented_criteria": [],
+    "residual_blockers": [],
+    "original_blocker_changed_to_unblocked": null,
+    "changed_for_correct_reason": null,
+    "reviewer_reasoning": ""
+  },
+  "usage": {
+    "calls": null,
+    "prompt_tokens": null,
+    "output_tokens": null,
+    "thinking_tokens": null,
+    "total_tokens": null,
+    "estimated_cost_inr": null
+  },
+  "run_counts_as_success": null,
+  "reviewer_notes": ""
+}
