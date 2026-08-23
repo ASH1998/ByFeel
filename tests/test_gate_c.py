@@ -327,7 +327,8 @@ def test_gate_c_api_and_browser_surface_expose_experiment_states() -> None:
     assert report.json()["gate_c_decision"] == "pending"
 
     html = client.get("/").text
-    assert "Gate C" in html
+    assert "Compare outcomes" in html
+    assert "Did repaired guidance help?" in html
     assert "static_instructions" in html
     assert "byfeel_teacher_repaired" in html
     assert "Synthetic rehearsal" in html

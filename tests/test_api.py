@@ -154,6 +154,32 @@ class ApiMediaClient:
     model = "fake-media"
     usage: list[dict[str, int]] = []
 
+    def generate_with_media(self, *, system, prompt, media, schema):
+        del system, prompt, schema
+        return MediaAnalysis(
+            teacher_spoke=False,
+            frame_observations=[
+                FrameObservation(
+                    sample_id=f"frame-{index:02d}",
+                    timestamp_seconds=float(index),
+                    visible_tool_and_contact="Hands contact the paper.",
+                    visible_state="The paper is progressively folded.",
+                )
+                for index in range(1, len(media) + 1)
+            ],
+            events=[
+                DemonstrationEvent(
+                    event_id="event-1",
+                    start_seconds=0,
+                    end_seconds=6,
+                    visible_action="The teacher folds the paper.",
+                )
+            ],
+            factual_demonstration_draft=(
+                "The teacher folds the paper and presses until it appears firm enough."
+            ),
+        )
+
 
 def fake_media_analyzer(**kwargs) -> MediaDraft:
     source = kwargs["source"]
@@ -213,6 +239,47 @@ def api_service(tmp_path) -> ByFeelService:
     )
 
 
+def minimal_jpeg(width: int = 2, height: int = 2) -> bytes:
+    return (
+        b"\xff\xd8\xff\xe0\x00\x10"
+        + b"0" * 14
+        + b"\xff\xc0\x00\x11\x08"
+        + height.to_bytes(2, "big")
+        + width.to_bytes(2, "big")
+        + b"\x03\x01\x11\x00\x02\x11\x00\x03\x11\x00\xff\xd9"
+    )
+
+
+def browser_evidence_payload() -> dict:
+    image = b64encode(minimal_jpeg()).decode()
+    return {
+        "policy_version": "browser-evidence-v1",
+        "capture_kind": "file",
+        "source_pseudonym": "src-api-test",
+        "source_fingerprint": "a" * 64,
+        "source_fingerprint_strategy": "sampled-sha256-v1",
+        "source_size_bytes": 225_000_000,
+        "duration_seconds": 8,
+        "source_width": 1920,
+        "source_height": 1080,
+        "evidence_sampling_fps": 0.75,
+        "frames": [
+            {
+                "sample_id": f"frame-{index:02d}",
+                "timestamp_seconds": float(index),
+                "width": 2,
+                "height": 2,
+                "content_type": "image/jpeg",
+                "content_base64": image,
+                "brightness_score": 0.5,
+                "sharpness_score": 0.5,
+                "quality_status": "usable",
+            }
+            for index in range(1, 7)
+        ],
+    }
+
+
 def create_and_extract(client: TestClient) -> dict:
     session = client.post(
         "/api/teacher/sessions",
@@ -227,11 +294,8 @@ def create_and_extract(client: TestClient) -> dict:
     assert session.status_code == 200
     session_id = session.json()["session_id"]
     media = client.post(
-        f"/api/teacher/sessions/{session_id}/media",
-        json={
-            "content_base64": b64encode(b"fake bounded video").decode(),
-            "content_type": "video/mp4",
-        },
+        f"/api/teacher/sessions/{session_id}/evidence-package",
+        json=browser_evidence_payload(),
     )
     assert media.status_code == 200
     assert media.json()["human_approval_required"] is True
@@ -251,7 +315,62 @@ def create_and_extract(client: TestClient) -> dict:
     return extracted
 
 
-def test_api_streams_large_video_route_without_base64(tmp_path) -> None:
+def test_api_raw_video_is_disabled_by_default(tmp_path) -> None:
+    client = TestClient(create_app(api_service(tmp_path)))
+    session = client.post(
+        "/api/teacher/sessions",
+        json={
+            "title": "Fold a towel",
+            "domain": "towel folding",
+            "learner_goal": "Produce the demonstrated folded end state",
+            "constraints": [],
+            "speech_mode": "silent",
+        },
+    )
+    response = client.post(
+        f"/api/teacher/sessions/{session.json()['session_id']}/media-stream",
+        content=b"raw video must not be accepted",
+        headers={"content-type": "video/x-matroska"},
+    )
+
+    assert response.status_code == 409
+    assert "raw video streaming is disabled" in response.json()["error"]["message"]
+
+
+def test_api_access_code_protects_mutations_but_not_health(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("BYFEEL_ACCESS_CODE", "judge-code-test")
+    client = TestClient(create_app(api_service(tmp_path)))
+
+    assert client.get("/health").status_code == 200
+    denied = client.post(
+        "/api/teacher/sessions",
+        json={
+            "title": "Fold a towel",
+            "domain": "towel folding",
+            "learner_goal": "Produce the demonstrated folded end state",
+            "constraints": [],
+            "speech_mode": "silent",
+        },
+    )
+    allowed = client.post(
+        "/api/teacher/sessions",
+        headers={"x-byfeel-access-code": "judge-code-test"},
+        json={
+            "title": "Fold a towel",
+            "domain": "towel folding",
+            "learner_goal": "Produce the demonstrated folded end state",
+            "constraints": [],
+            "speech_mode": "silent",
+        },
+    )
+
+    assert denied.status_code == 401
+    assert denied.json()["error"]["code"] == "access_denied"
+    assert allowed.status_code == 200
+
+
+def test_api_streams_large_video_only_with_explicit_local_opt_in(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("BYFEEL_ALLOW_LOCAL_RAW_VIDEO", "1")
     client = TestClient(create_app(api_service(tmp_path)))
     session = client.post(
         "/api/teacher/sessions",
@@ -277,6 +396,32 @@ def test_api_streams_large_video_route_without_base64(tmp_path) -> None:
     assert (tmp_path / session_id / "teacher-source.mkv").read_bytes() == (b"fake matroska video")
 
 
+def test_api_accepts_only_bounded_browser_evidence_from_large_source(tmp_path) -> None:
+    client = TestClient(create_app(api_service(tmp_path)))
+    session = client.post(
+        "/api/teacher/sessions",
+        json={
+            "title": "Fold a towel",
+            "domain": "towel folding",
+            "learner_goal": "Produce the demonstrated folded end state",
+            "constraints": [],
+            "speech_mode": "silent",
+        },
+    ).json()
+
+    media = client.post(
+        f"/api/teacher/sessions/{session['session_id']}/evidence-package",
+        json=browser_evidence_payload(),
+    )
+
+    assert media.status_code == 200
+    assert media.json()["source_kind"] == "browser_evidence"
+    assert media.json()["source_hash_strategy"] == "sampled-sha256-v1"
+    assert media.json()["metadata"]["source_size_bytes"] == 225_000_000
+    assert media.json()["model_media"]["payload_bytes"] < 5 * 1024 * 1024
+    assert not list((tmp_path / session["session_id"]).glob("teacher-source*"))
+
+
 def test_api_teacher_repair_learner_checkpoint_flow(tmp_path) -> None:
     service = api_service(tmp_path)
     client = TestClient(create_app(service))
@@ -286,9 +431,9 @@ def test_api_teacher_repair_learner_checkpoint_flow(tmp_path) -> None:
     assert client.get("/version").json()["version"]
     html = client.get("/")
     assert html.status_code == 200
-    assert "media-stream" in html.text
+    assert "evidence-package" in html.text
     assert "getUserMedia" in html.text
-    assert "capped at 5 MiB total" in html.text
+    assert "source video stays on this device" in html.text
 
     taught = create_and_extract(client)
     assert taught["probe_run"]["report"]["status"] == "blocked"
