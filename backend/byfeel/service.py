@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -15,8 +16,16 @@ from .adk_runtime import (
     ProbeRuntime,
     TeachingPartnerRuntime,
 )
+from .evidence import EvidenceStore
 from .experiment import GateAExperiment, StructuredClient
-from .media_ingest import MediaDraft, MultimodalClient, SpeechMode, analyze_teacher_media
+from .media_ingest import (
+    BrowserEvidencePackage,
+    MediaDraft,
+    MultimodalClient,
+    SpeechMode,
+    analyze_teacher_evidence_package,
+    analyze_teacher_media,
+)
 from .models import (
     ApprovedDemonstration,
     ApprovedTeacherIntervention,
@@ -105,6 +114,8 @@ class ByFeelService:
         teaching_runtime: TeachingPartnerRuntime | None = None,
         media_client: MultimodalClient | None = None,
         media_analyzer: Callable[..., MediaDraft] = analyze_teacher_media,
+        media_evidence_analyzer: Callable[..., MediaDraft] = analyze_teacher_evidence_package,
+        evidence_store: EvidenceStore | None = None,
         run_root: Path | None = None,
     ) -> None:
         self.repository = repository
@@ -114,7 +125,9 @@ class ByFeelService:
         self._teaching_runtime = teaching_runtime
         self._media_client = media_client
         self._media_analyzer = media_analyzer
-        self._run_root = run_root or Path("runs/web")
+        self._media_evidence_analyzer = media_evidence_analyzer
+        self.evidence_store = evidence_store
+        self._run_root = run_root or Path(os.getenv("BYFEEL_RUN_ROOT", "runs/web"))
 
     def create_teacher_session(
         self,
@@ -180,6 +193,68 @@ class ByFeelService:
         run_dir = self._run_root / session.session_id
         run_dir.mkdir(parents=True, exist_ok=False)
         return run_dir / f"teacher-source{extension}"
+
+    def process_teacher_evidence_package(
+        self,
+        session_id: str,
+        *,
+        package: BrowserEvidencePackage,
+    ) -> MediaDraft:
+        if self._media_client is None:
+            raise RuntimeError("teacher media processing is not configured")
+        session = self.repository.get_teacher_session(session_id)
+        if session.status != TeacherSessionStatus.AWAITING_MEDIA:
+            raise ValueError("this teacher session already received media")
+        session.status = TeacherSessionStatus.PROCESSING
+        session.updated_at = datetime.now(UTC)
+        self.repository.save_teacher_session(session)
+        run_dir = self._run_root / session.session_id
+        try:
+            run_dir.mkdir(parents=True, exist_ok=False)
+            draft = self._media_evidence_analyzer(
+                client=self._media_client,
+                package=package,
+                run_dir=run_dir,
+                title=session.title,
+                domain=session.domain,
+                learner_goal=session.learner_goal,
+                constraints=session.constraints,
+                speech_mode=session.speech_mode,
+            )
+            if self.evidence_store is not None:
+                content_by_id = {frame.sample_id: frame.content for frame in package.frames}
+                type_by_id = {frame.sample_id: frame.content_type for frame in package.frames}
+                draft.frame_samples = [
+                    sample.model_copy(
+                        update={
+                            "evidence": self.evidence_store.put(
+                                content_by_id[sample.sample_id],
+                                content_type=type_by_id[sample.sample_id],
+                                source="teacher",
+                            )
+                        }
+                    )
+                    for sample in draft.frame_samples
+                ]
+        except Exception as exc:
+            self.fail_teacher_video_upload(session_id, exc)
+            raise
+        self.repository.save_media_draft(draft)
+        session.status = TeacherSessionStatus.REVIEW_REQUIRED
+        session.media_run_id = draft.run_id
+        session.updated_at = datetime.now(UTC)
+        self.repository.save_teacher_session(session)
+        self._audit(
+            event_type="browser_evidence_package_ingested",
+            entity_ref=session_id,
+            actor="teacher",
+            summary=(
+                f"Accepted {len(package.frames)} bounded browser-derived frames; "
+                "source video and audio were not uploaded."
+            ),
+            related_refs=[package.policy_version, package.source_fingerprint],
+        )
+        return draft
 
     def finish_teacher_video_upload(
         self,

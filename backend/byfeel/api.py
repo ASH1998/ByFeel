@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from base64 import b64decode
 from binascii import Error as Base64Error
+from hmac import compare_digest
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -19,7 +20,13 @@ from .adk_runtime import AdkLearnerCoachRuntime, AdkProbeRuntime, AdkTeachingPar
 from .evidence import EvidenceStore, InMemoryEvidenceStore
 from .gate_c import GateCExperimentRunner
 from .gemini import ByFeelModelRouter, GeminiStructuredClient
-from .media_ingest import MediaDraft
+from .media_ingest import (
+    BROWSER_EVIDENCE_MAX_FRAMES,
+    BROWSER_EVIDENCE_MIN_FRAMES,
+    BrowserEvidenceFrame,
+    BrowserEvidencePackage,
+    MediaDraft,
+)
 from .models import (
     ApprovedDemonstration,
     BlockerReview,
@@ -40,7 +47,8 @@ from .models import (
 from .repositories import ConflictError, InMemoryRepository, NotFoundError
 from .service import STREAM_VIDEO_UPLOAD_LIMIT_BYTES, ByFeelService
 
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.4.0"
+MAX_EVIDENCE_PACKAGE_REQUEST_BYTES = 8 * 1024 * 1024
 
 
 def media_review_payload(session_id: str, draft: MediaDraft) -> dict[str, object]:
@@ -50,6 +58,8 @@ def media_review_payload(session_id: str, draft: MediaDraft) -> dict[str, object
         "session_id": session_id,
         "status": "review_required",
         "source_sha256": draft.source_sha256,
+        "source_hash_strategy": draft.source_hash_strategy,
+        "source_kind": draft.source_kind,
         "speech_mode": draft.speech_mode.value,
         "sampling_strategy": draft.sampling_strategy,
         "metadata": draft.metadata.model_dump(mode="json"),
@@ -104,6 +114,35 @@ class CreateTeacherSessionRequest(BaseModel):
 class TeacherVideoRequest(BaseModel):
     content_base64: str = Field(min_length=1)
     content_type: Literal["video/mp4", "video/webm", "video/quicktime"]
+
+
+class BrowserEvidenceFrameRequest(BaseModel):
+    sample_id: str = Field(pattern=r"^frame-[0-9]{2}$")
+    timestamp_seconds: float = Field(ge=0)
+    width: int = Field(gt=0, le=768)
+    height: int = Field(gt=0, le=768)
+    content_type: Literal["image/jpeg", "image/webp"]
+    content_base64: str = Field(min_length=44)
+    brightness_score: float = Field(ge=0, le=1)
+    sharpness_score: float = Field(ge=0, le=1)
+    quality_status: Literal["usable", "review"]
+
+
+class BrowserEvidencePackageRequest(BaseModel):
+    policy_version: Literal["browser-evidence-v1"]
+    capture_kind: Literal["file", "camera"]
+    source_pseudonym: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$")
+    source_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_fingerprint_strategy: Literal["sampled-sha256-v1"]
+    source_size_bytes: int = Field(ge=0)
+    duration_seconds: float = Field(gt=0)
+    source_width: int = Field(gt=0)
+    source_height: int = Field(gt=0)
+    evidence_sampling_fps: float = Field(gt=0)
+    frames: list[BrowserEvidenceFrameRequest] = Field(
+        min_length=BROWSER_EVIDENCE_MIN_FRAMES,
+        max_length=BROWSER_EVIDENCE_MAX_FRAMES,
+    )
 
 
 class FactualApprovalRequest(BaseModel):
@@ -179,6 +218,7 @@ def build_local_components() -> tuple[ByFeelService, EvidenceStore]:
         probe_runtime=AdkProbeRuntime(model=model),
         teaching_runtime=AdkTeachingPartnerRuntime(model=lite_model),
         media_client=lite_client,
+        evidence_store=evidence_store,
     )
     return service, evidence_store
 
@@ -188,7 +228,9 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(title="ByFeel local MVP", version=APP_VERSION)
     app.state.byfeel_service = service
-    app.state.evidence_store = evidence_store or InMemoryEvidenceStore()
+    app.state.evidence_store = (
+        evidence_store or getattr(service, "evidence_store", None) or InMemoryEvidenceStore()
+    )
     app.state.gate_c_runner = None
 
     def get_service() -> ByFeelService:
@@ -213,6 +255,22 @@ def create_app(
     async def request_context(request: Request, call_next):
         request_id = request.headers.get("x-request-id") or uuid4().hex
         request.state.request_id = request_id
+        access_code = os.getenv("BYFEEL_ACCESS_CODE", "").strip()
+        if request.url.path.startswith("/api/") and access_code:
+            supplied_code = request.headers.get("x-byfeel-access-code", "")
+            if not compare_digest(supplied_code, access_code):
+                response = JSONResponse(
+                    status_code=401,
+                    content={
+                        "error": {
+                            "code": "access_denied",
+                            "message": "A valid ByFeel judge access code is required",
+                            "request_id": request_id,
+                        }
+                    },
+                )
+                response.headers["x-request-id"] = request_id
+                return response
         try:
             response = await call_next(request)
         except NotFoundError as exc:
@@ -302,6 +360,10 @@ def create_app(
 
     @app.post("/api/teacher/sessions/{session_id}/media")
     def process_teacher_media(session_id: str, request: TeacherVideoRequest):
+        if os.getenv("BYFEEL_ALLOW_LOCAL_RAW_VIDEO", "0") != "1":
+            raise ValueError(
+                "raw video upload is disabled; submit a browser evidence package instead"
+            )
         try:
             video = b64decode(request.content_base64, validate=True)
         except (Base64Error, ValueError) as exc:
@@ -315,6 +377,10 @@ def create_app(
 
     @app.post("/api/teacher/sessions/{session_id}/media-stream")
     async def stream_teacher_media(session_id: str, request: Request):
+        if os.getenv("BYFEEL_ALLOW_LOCAL_RAW_VIDEO", "0") != "1":
+            raise ValueError(
+                "raw video streaming is disabled; submit a browser evidence package instead"
+            )
         content_type = request.headers.get("content-type", "").split(";", 1)[0].strip()
         content_length = request.headers.get("content-length")
         if content_length is not None and int(content_length) > STREAM_VIDEO_UPLOAD_LIMIT_BYTES:
@@ -343,13 +409,68 @@ def create_app(
             raise
         return media_review_payload(session_id, draft)
 
+    @app.post("/api/teacher/sessions/{session_id}/evidence-package")
+    async def process_teacher_evidence_package(
+        session_id: str,
+        request: Request,
+    ):
+        content_length = request.headers.get("content-length")
+        if content_length is not None and int(content_length) > MAX_EVIDENCE_PACKAGE_REQUEST_BYTES:
+            raise ValueError("browser evidence request exceeds the 8 MiB transport limit")
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > MAX_EVIDENCE_PACKAGE_REQUEST_BYTES:
+                raise ValueError("browser evidence request exceeds the 8 MiB transport limit")
+        try:
+            incoming = BrowserEvidencePackageRequest.model_validate_json(bytes(body))
+            frames = []
+            for frame in incoming.frames:
+                try:
+                    content = b64decode(frame.content_base64, validate=True)
+                except (Base64Error, ValueError) as exc:
+                    raise ValueError(
+                        f"{frame.sample_id} content_base64 is not valid base64"
+                    ) from exc
+                frames.append(
+                    BrowserEvidenceFrame(
+                        **frame.model_dump(exclude={"content_base64"}),
+                        content=content,
+                    )
+                )
+            package = BrowserEvidencePackage(
+                **incoming.model_dump(exclude={"frames"}),
+                frames=frames,
+            )
+        except RequestValidationError:
+            raise
+        except Exception as exc:
+            if isinstance(exc, ValueError):
+                raise
+            raise ValueError("browser evidence package is invalid") from exc
+        draft = get_service().process_teacher_evidence_package(
+            session_id,
+            package=package,
+        )
+        return media_review_payload(session_id, draft)
+
     @app.get("/api/teacher/sessions/{session_id}/frames/{sample_id}")
-    def teacher_frame(session_id: str, sample_id: str) -> FileResponse:
+    def teacher_frame(session_id: str, sample_id: str):
         draft = get_service().repository.get_media_draft(session_id)
         try:
             sample = next(item for item in draft.frame_samples if item.sample_id == sample_id)
         except StopIteration as exc:
             raise NotFoundError(f"frame sample {sample_id!r} was not found") from exc
+        if sample.evidence is not None:
+            from fastapi.responses import Response
+
+            try:
+                content = get_evidence_store().get(sample.evidence)
+            except LookupError as exc:
+                raise NotFoundError(
+                    f"frame evidence {sample.evidence.evidence_id!r} was not found"
+                ) from exc
+            return Response(content=content, media_type=sample.evidence.content_type)
         return FileResponse(sample.path, media_type="image/jpeg")
 
     @app.post(

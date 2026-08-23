@@ -6,107 +6,241 @@
   <title>ByFeel — teach what words leave out</title>
   <style>
     :root {
-      color-scheme: light; --ink:#17211c; --muted:#65736b; --paper:#f5f3eb;
-      --card:#fffefa; --line:#d9ddd4; --green:#174f3a; --lime:#dafa78;
-      --amber:#f3b85b; --red:#b4483f; --blue:#346b77; --shadow:0 22px 60px #19332916;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme:light;
+      --ink:#111210; --muted:#686a65; --faint:#92958e; --paper:#f7f7f4;
+      --card:rgba(255,255,255,.88); --line:rgba(17,18,16,.09); --line-strong:rgba(17,18,16,.16);
+      --accent:#176b4d; --accent-soft:#e6f2ec; --amber:#9a650d; --amber-soft:#fff6df;
+      --red:#a33931; --red-soft:#fff0ee; --blue:#3769a6;
+      --shadow:0 1px 2px rgba(17,18,16,.03),0 18px 48px rgba(17,18,16,.055);
+      --radius:22px;
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Segoe UI",Arial,sans-serif;
     }
-    * { box-sizing:border-box; }
-    body { margin:0; color:var(--ink); background:var(--paper); }
-    button, input, textarea, select { font:inherit; }
-    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline:3px solid #83aef0; outline-offset:2px; }
-    .shell { min-height:100vh; display:grid; grid-template-columns:250px 1fr; }
-    aside { padding:30px 22px; background:#133c2e; color:white; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; }
-    .brand { font-weight:850; font-size:1.6rem; letter-spacing:-.05em; }
-    .brand small { display:block; margin-top:6px; font-size:.72rem; letter-spacing:.09em; text-transform:uppercase; color:#b8d2c5; }
-    nav { margin-top:42px; display:grid; gap:8px; }
-    .nav-button { border:0; border-radius:12px; padding:12px; text-align:left; color:#c9ddd3; background:transparent; cursor:pointer; }
-    .nav-button[aria-selected="true"] { color:#133c2e; background:var(--lime); font-weight:800; }
-    .boundary-note { margin-top:auto; color:#b8d2c5; font-size:.78rem; line-height:1.45; border-top:1px solid #ffffff22; padding-top:18px; }
-    main { padding:42px clamp(22px, 5vw, 70px) 80px; max-width:1300px; width:100%; }
-    .hero { display:flex; justify-content:space-between; gap:30px; align-items:flex-end; margin-bottom:34px; }
-    h1 { margin:0; max-width:760px; font-size:clamp(2.4rem, 5vw, 5.4rem); letter-spacing:-.065em; line-height:.92; }
-    .hero p { max-width:420px; color:var(--muted); line-height:1.55; }
-    .mode { display:none; }
-    .mode.active { display:block; animation:fade .18s ease-out; }
-    @keyframes fade { from { opacity:0; transform:translateY(6px); } }
-    .mode-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
-    .eyebrow { color:var(--green); font-weight:850; letter-spacing:.09em; text-transform:uppercase; font-size:.74rem; }
-    h2 { margin:3px 0 0; font-size:1.7rem; letter-spacing:-.03em; }
-    h3 { margin:0 0 8px; font-size:1.04rem; }
-    .grid { display:grid; grid-template-columns:repeat(12,1fr); gap:16px; }
-    .card { grid-column:span 6; background:var(--card); border:1px solid var(--line); border-radius:20px; padding:22px; box-shadow:var(--shadow); }
-    .card.wide { grid-column:1/-1; }
-    .card.third { grid-column:span 4; }
-    .card p { color:var(--muted); line-height:1.5; }
-    label { display:block; margin:13px 0 6px; font-size:.8rem; font-weight:750; color:#46534c; }
-    input, textarea, select { width:100%; border:1px solid #cbd1c8; background:white; border-radius:11px; padding:11px 12px; color:var(--ink); }
-    textarea { min-height:112px; resize:vertical; line-height:1.45; }
-    .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    .actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:16px; }
-    button { border:0; border-radius:999px; padding:10px 16px; background:var(--green); color:white; font-weight:800; cursor:pointer; }
-    button.secondary { color:var(--green); background:#e9eee9; }
-    button.danger { color:#7a281f; background:#fae2dc; }
-    button:disabled { opacity:.42; cursor:not-allowed; }
-    .status { min-height:1.35em; margin:12px 0 0; color:var(--green); font-weight:700; font-size:.86rem; }
-    .status.error { color:var(--red); }
-    .notice { padding:13px 15px; border-radius:12px; background:#edf4f0; border-left:4px solid var(--green); font-size:.88rem; line-height:1.45; }
-    .notice.warn { background:#fff2d8; border-color:var(--amber); }
-    .pill { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:white; border-radius:999px; padding:6px 10px; font-size:.76rem; font-weight:750; }
-    .pill::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--green); }
-    .pills { display:flex; flex-wrap:wrap; gap:7px; margin:12px 0; }
-    .frames { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-top:14px; }
-    figure { margin:0; border:1px solid var(--line); border-radius:13px; overflow:hidden; background:#f0f0ea; }
-    figure img { display:block; width:100%; aspect-ratio:16/10; object-fit:cover; }
-    .camera-preview { display:block; width:100%; max-height:260px; margin-top:12px; border-radius:13px; background:#122119; object-fit:contain; }
-    figcaption { padding:8px; font-size:.72rem; color:var(--muted); }
-    .steps { display:grid; gap:10px; }
-    .step { padding:15px; background:#f7f7f1; border:1px solid var(--line); border-radius:14px; }
-    .step strong { color:var(--green); }
-    pre { margin:10px 0 0; max-height:360px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:#122119; color:#dbe9df; border-radius:14px; padding:16px; font:12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
-    .decision { font-size:2rem; font-weight:900; letter-spacing:-.04em; }
-    .progress { height:9px; background:#e3e7df; border-radius:99px; overflow:hidden; margin:12px 0; }
-    .progress span { display:block; height:100%; background:var(--lime); width:0; transition:width .25s; }
-    @media (max-width:900px) { .shell{grid-template-columns:1fr} aside{position:static;height:auto;padding:18px} nav{margin:18px 0 0;grid-template-columns:repeat(3,1fr)} .boundary-note{display:none}.hero{display:block}.card,.card.third{grid-column:1/-1} }
-    @media (max-width:560px) { main{padding:28px 14px 60px}.row{grid-template-columns:1fr} nav{grid-template-columns:1fr}.hero p{font-size:.9rem} }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;color:var(--ink);background:var(--paper);font-size:15px;letter-spacing:-.01em}
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(17,18,16,.026) 1px,transparent 1px),linear-gradient(90deg,rgba(17,18,16,.026) 1px,transparent 1px),radial-gradient(circle at 70% -15%,rgba(169,208,190,.18),transparent 34%);background-size:40px 40px,40px 40px,100% 100%;background-position:-1px -1px,-1px -1px,0 0;z-index:-1}
+    button,input,textarea,select{font:inherit}
+    button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid rgba(55,105,166,.3);outline-offset:2px}
+    .shell{min-height:100vh;display:grid;grid-template-columns:264px minmax(0,1fr)}
+    aside{padding:28px 18px 22px;background:rgba(250,250,248,.86);border-right:1px solid var(--line);backdrop-filter:blur(24px);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;z-index:10}
+    .brand{padding:0 10px;font-weight:620;font-size:1.24rem;letter-spacing:-.035em}
+    .brand::before{content:"";display:inline-block;width:10px;height:10px;margin-right:9px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 4px rgba(17,18,16,.08)}
+    .brand small{display:block;margin:8px 0 0 29px;font-size:.61rem;font-weight:510;letter-spacing:.085em;text-transform:uppercase;color:var(--faint)}
+    nav{margin-top:38px;display:grid;gap:4px}
+    .nav-button{border:0;border-radius:12px;padding:11px 12px;text-align:left;color:#5f615d;background:transparent;cursor:pointer;font-size:.86rem;font-weight:560;transition:background .18s,color .18s,transform .18s}
+    .nav-button:hover{background:rgba(17,18,16,.045);color:var(--ink)}
+    .nav-button[aria-selected="true"]{color:var(--ink);background:#fff;font-weight:590;box-shadow:0 1px 2px rgba(17,18,16,.05),inset 0 0 0 1px var(--line)}
+    aside>label{margin-top:28px!important;padding:0 10px;color:var(--faint)!important}
+    aside input{margin-top:7px;background:rgba(255,255,255,.7);font-size:.78rem;padding:9px 10px}
+    .boundary-note{margin-top:auto;color:var(--faint);font-size:.7rem;line-height:1.55;border-top:1px solid var(--line);padding:17px 10px 0}
+    main{padding:54px clamp(24px,5vw,76px) 96px;max-width:1440px;width:100%;margin:0 auto}
+    .hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:56px;align-items:end;margin:12px 0 52px;padding:28px 0 38px;border-bottom:1px solid var(--line)}
+    .hero::before{content:"Physical knowledge, made transferable";grid-column:1/-1;color:var(--accent);font-size:.66rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-bottom:-30px}
+    h1{margin:0;max-width:720px;font-size:clamp(2.45rem,4.2vw,4.15rem);font-weight:410;letter-spacing:-.045em;line-height:1.01;text-wrap:balance}
+    .hero p{max-width:390px;margin:0 0 4px;color:var(--muted);font-size:.96rem;line-height:1.7;font-weight:400}
+    .mode{display:none}
+    .mode.active{display:block;animation:fade .3s cubic-bezier(.2,.8,.2,1)}
+    @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    .mode-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+    .eyebrow{color:var(--accent);font-weight:600;letter-spacing:.105em;text-transform:uppercase;font-size:.64rem}
+    h2{margin:6px 0 0;font-size:clamp(1.35rem,2.4vw,1.8rem);font-weight:480;letter-spacing:-.027em}
+    h3{margin:0 0 9px;font-size:.96rem;font-weight:590;letter-spacing:-.014em}
+    .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:18px}
+    .card{grid-column:span 6;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:25px;box-shadow:var(--shadow);backdrop-filter:blur(14px);transition:transform .2s,box-shadow .2s}
+    .card:hover{box-shadow:0 1px 2px rgba(17,18,16,.03),0 24px 60px rgba(17,18,16,.07)}
+    .card.wide{grid-column:1/-1}
+    .card.third{grid-column:span 4}
+    .card p{color:var(--muted);line-height:1.58;margin-top:0}
+    label{display:block;margin:15px 0 7px;font-size:.71rem;font-weight:560;letter-spacing:.01em;color:#555752}
+    input,textarea,select{width:100%;border:1px solid var(--line-strong);background:rgba(255,255,255,.92);border-radius:12px;padding:11px 12px;color:var(--ink);box-shadow:inset 0 1px 1px rgba(17,18,16,.025);transition:border .18s,box-shadow .18s,background .18s}
+    input:hover,textarea:hover,select:hover{border-color:rgba(17,18,16,.25)}
+    input:focus,textarea:focus,select:focus{border-color:rgba(17,18,16,.32);box-shadow:0 0 0 4px rgba(17,18,16,.045);background:#fff;outline:0}
+    textarea{min-height:116px;resize:vertical;line-height:1.5}
+    input[type=file]{padding:8px;font-size:.77rem;color:var(--muted)}
+    input[type=file]::file-selector-button{border:0;background:#efefec;border-radius:8px;padding:7px 10px;margin-right:9px;font:inherit;font-weight:630;color:var(--ink);cursor:pointer}
+    input[type=checkbox]{width:auto;accent-color:var(--ink);box-shadow:none}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+    .actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+    button{border:0;border-radius:999px;padding:10px 16px;background:var(--ink);color:#fff;font-size:.79rem;font-weight:570;letter-spacing:0;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.15);transition:transform .15s,box-shadow .15s,background .15s}
+    button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 5px 16px rgba(0,0,0,.15);background:#282a26}
+    button:active:not(:disabled){transform:translateY(0)}
+    button.secondary{color:var(--ink);background:#efefec;box-shadow:inset 0 0 0 1px rgba(17,18,16,.055)}
+    button.secondary:hover:not(:disabled){background:#e7e7e3;box-shadow:inset 0 0 0 1px rgba(17,18,16,.08)}
+    button.danger{color:var(--red);background:var(--red-soft);box-shadow:none}
+    button:disabled{opacity:.34;cursor:not-allowed;box-shadow:none}
+    .status{min-height:1.35em;margin:13px 0 0;color:var(--accent);font-weight:610;font-size:.79rem;line-height:1.45}
+    .status.error{color:var(--red)}
+    .notice{padding:14px 15px;border-radius:13px;background:var(--accent-soft);border:1px solid rgba(23,107,77,.1);color:#345d4d;font-size:.8rem;line-height:1.55}
+    .notice.warn{background:var(--amber-soft);border-color:rgba(154,101,13,.12);color:#765519}
+    .pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:rgba(255,255,255,.74);border-radius:999px;padding:6px 10px;font-size:.68rem;font-weight:650;color:#5e615b}
+    .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(23,107,77,.09)}
+    .pills{display:flex;flex-wrap:wrap;gap:7px;margin:13px 0}
+    .frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;margin-top:15px}
+    figure{margin:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#efefec}
+    figure img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover}
+    .camera-preview{display:block;width:100%;max-height:280px;margin-top:13px;border-radius:15px;background:#111210;object-fit:contain;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+    figcaption{padding:9px 10px;font-size:.68rem;color:var(--muted);background:#fff}
+    .steps{display:grid;gap:10px}
+    .step{padding:15px 16px;background:rgba(247,247,244,.78);border:1px solid var(--line);border-radius:14px;line-height:1.5}
+    .step strong{color:var(--ink);font-weight:670}
+    pre{margin:11px 0 0;max-height:380px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#151614;color:#dce3dd;border:1px solid rgba(255,255,255,.06);border-radius:15px;padding:17px;font:11.5px/1.62 ui-monospace,"SFMono-Regular",Consolas,monospace;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+    .decision{font-size:1.7rem;font-weight:480;letter-spacing:-.03em}
+    .progress{height:7px;background:#e7e7e3;border-radius:99px;overflow:hidden;margin:14px 0}
+    .progress span{display:block;height:100%;background:var(--ink);width:0;transition:width .35s cubic-bezier(.2,.8,.2,1)}
+    @media(max-width:980px){.shell{grid-template-columns:1fr}aside{position:static;height:auto;padding:17px 18px}nav{margin:18px 0 0;grid-template-columns:repeat(5,1fr);overflow:auto}.nav-button{text-align:center;white-space:nowrap}.boundary-note{display:none}aside>label{max-width:300px}.hero{grid-template-columns:1fr;margin-top:8px}.hero p{max-width:620px}.card,.card.third{grid-column:1/-1}}
+    @media(max-width:640px){main{padding:32px 14px 64px}.hero{gap:24px;margin-bottom:36px;padding-bottom:30px}.hero::before{margin-bottom:-10px}h1{font-size:2.65rem}.row{grid-template-columns:1fr}nav{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:max-content}.card{padding:19px;border-radius:18px}.mode-head{align-items:flex-end}.mode-head>.pill{display:none}}
+
+    /* White studio redesign: app-like, playful, and intentionally lightweight. */
+    :root{
+      --ink:#202321;--muted:#6f7571;--faint:#9ca29e;--paper:#fff;--card:#fff;
+      --line:#e8ebe9;--line-strong:#d9deda;--accent:#12b886;--accent-dark:#08795a;
+      --accent-soft:#e9fbf5;--amber:#a46512;--amber-soft:#fff8e8;--red:#b34747;
+      --red-soft:#fff1f1;--blue:#4f78df;--lavender:#8a78e6;--coral:#ff826d;
+      --shadow:0 1px 2px rgba(27,35,31,.04),0 10px 30px rgba(27,35,31,.055);
+      --radius:20px;
+      --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Segoe UI",sans-serif;
+      --font-mono:"JetBrains Mono","JetBrainsMono Nerd Font","SFMono-Regular",Consolas,monospace;
+      font-family:var(--font-sans);
+    }
+    body{background:#fff;font-size:14px;letter-spacing:-.006em}
+    body::before{background-image:radial-gradient(circle at 64% -10%,rgba(18,184,134,.075),transparent 27%),radial-gradient(circle at 94% 34%,rgba(138,120,230,.05),transparent 21%);background-size:100% 100%;opacity:1}
+    .shell{grid-template-columns:238px minmax(0,1fr)}
+    aside{padding:22px 14px 18px;background:rgba(255,255,255,.94);border-right:1px solid var(--line);backdrop-filter:blur(20px)}
+    .brand{display:grid;grid-template-columns:38px 1fr;grid-template-rows:auto auto;align-items:center;padding:4px 8px;font-size:1.08rem;font-weight:650;letter-spacing:-.03em}
+    .brand::before{grid-row:1/3;width:34px;height:34px;margin:0 10px 0 0;background:conic-gradient(from 210deg,var(--accent),#83e0c5 35%,#ffe090 62%,var(--coral) 82%,var(--accent));box-shadow:inset 0 0 0 8px rgba(255,255,255,.82),0 5px 14px rgba(18,184,134,.18)}
+    .brand small{margin:2px 0 0;font-size:.59rem;font-weight:520;letter-spacing:.055em;color:var(--faint)}
+    nav{margin-top:28px;gap:5px;scrollbar-width:none}
+    nav::-webkit-scrollbar{display:none}
+    .nav-button{position:relative;padding:11px 12px 11px 38px;border-radius:11px;color:#646a66;font-size:.81rem;font-weight:520}
+    .nav-button::before{content:attr(data-step);position:absolute;left:12px;top:50%;translate:0 -50%;display:grid;place-items:center;width:17px;height:17px;border:1px solid var(--line-strong);border-radius:6px;color:var(--faint);font-size:.6rem;font-weight:650;background:#fff}
+    .nav-button:hover{background:#f7f9f8;color:var(--ink)}
+    .nav-button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent-dark);font-weight:610;box-shadow:none}
+    .nav-button[aria-selected="true"]::before{color:#fff;background:var(--accent);border-color:var(--accent)}
+    .nav-button:hover:not(:disabled){background:#f7f9f8;color:var(--ink);box-shadow:none;transform:none}
+    .nav-button[aria-selected="true"]:hover:not(:disabled){background:var(--accent-soft);color:var(--accent-dark)}
+    aside>label{margin-top:24px!important;padding:14px 10px!important;color:var(--muted)!important;background:#f8faf9;border:1px solid var(--line);border-radius:14px}
+    aside input{background:#fff;font-size:.73rem;padding:8px 9px}
+    .boundary-note{font-size:.65rem;line-height:1.5;padding:15px 8px 0}
+    main{padding:26px clamp(24px,4vw,62px) 90px;max-width:1500px}
+    .workspace-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;color:var(--muted);font-size:.72rem}
+    .workspace-path{display:flex;align-items:center;gap:8px}
+    .workspace-path::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 5px var(--accent-soft)}
+    .live-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;color:#737975;box-shadow:0 1px 2px rgba(27,35,31,.03)}
+    .live-chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);animation:softPulse 2.5s infinite}
+    @keyframes softPulse{50%{box-shadow:0 0 0 5px rgba(18,184,134,.12)}}
+    .hero{position:relative;isolation:isolate;grid-template-columns:minmax(0,1fr) 330px;align-items:center;gap:30px;margin:0 0 28px;padding:34px 38px;min-height:250px;border:1px solid var(--line);border-radius:28px;background:linear-gradient(135deg,#fbfffd 0%,#fff 53%,#fffdf7 100%);box-shadow:var(--shadow);overflow:hidden}
+    .hero::before{content:"";position:absolute;inset:0;z-index:-2;margin:0;background-image:radial-gradient(rgba(18,184,134,.18) 1.25px,transparent 1.25px);background-size:16px 16px;mask-image:linear-gradient(90deg,transparent 43%,#000 72%);opacity:.7}
+    .hero::after{content:"";position:absolute;width:360px;height:360px;right:-120px;top:-180px;z-index:-1;border-radius:50%;background:rgba(138,120,230,.065)}
+    .hero-copy{position:relative;z-index:2}
+    .hero-kicker{display:inline-flex;align-items:center;gap:7px;margin-bottom:13px;color:var(--accent-dark);font-size:.65rem;font-weight:650;letter-spacing:.08em;text-transform:uppercase}
+    .hero-kicker::before{content:"✦";font-size:.8rem;color:var(--coral)}
+    h1{max-width:620px;font-size:clamp(2.15rem,3.5vw,3.35rem);font-weight:480;letter-spacing:-.048em;line-height:1.04}
+    .hero p{max-width:590px;margin:15px 0 0;font-size:.9rem;line-height:1.65}
+    .hero-badges{display:flex;flex-wrap:wrap;gap:7px;margin-top:20px}
+    .hero-badge{padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.84);color:#666c68;font-size:.67rem;box-shadow:0 1px 3px rgba(27,35,31,.04)}
+    .transfer-orbit{position:relative;width:260px;height:174px;margin:auto}
+    .orbit-line{position:absolute;left:46px;right:46px;top:84px;height:2px;background:linear-gradient(90deg,var(--coral),#ffd477 48%,var(--accent));transform:rotate(-7deg);opacity:.55}
+    .orbit-node{position:absolute;display:grid;place-items:center;border:1px solid rgba(255,255,255,.9);border-radius:22px;background:#fff;box-shadow:0 12px 28px rgba(27,35,31,.1);color:var(--ink);font-size:.69rem;font-weight:620;text-align:center}
+    .orbit-node span{display:block;font-size:1.25rem;margin-bottom:3px}
+    .orbit-node.teacher{left:0;top:18px;width:92px;height:92px;background:#fff4ef;transform:rotate(-4deg)}
+    .orbit-node.agent{left:91px;top:70px;width:80px;height:80px;background:#f2efff;transform:rotate(4deg)}
+    .orbit-node.learner{right:0;top:12px;width:96px;height:96px;background:var(--accent-soft);transform:rotate(3deg)}
+    .mode-head{margin:0 0 16px;padding:0 4px}
+    .eyebrow{color:var(--accent-dark);font-size:.6rem;font-weight:650;letter-spacing:.09em}
+    h2{font-size:clamp(1.25rem,2vw,1.65rem);font-weight:520;letter-spacing:-.03em}
+    h3{font-size:.9rem;font-weight:630}
+    .grid{gap:14px;align-items:start}
+    .card{padding:22px;border-color:var(--line);border-radius:var(--radius);box-shadow:0 1px 2px rgba(27,35,31,.025),0 7px 22px rgba(27,35,31,.035);backdrop-filter:none}
+    .card:hover{border-color:#dce3df;box-shadow:0 1px 2px rgba(27,35,31,.03),0 12px 28px rgba(27,35,31,.05)}
+    .card p{font-size:.79rem;line-height:1.58}
+    label{font-size:.67rem;font-weight:590;color:#626864}
+    input,textarea,select{border-color:var(--line-strong);border-radius:11px;padding:10px 11px;background:#fff;font-size:.78rem;box-shadow:none}
+    input:hover,textarea:hover,select:hover{border-color:#bfc8c2}
+    input:focus,textarea:focus,select:focus{border-color:rgba(18,184,134,.65);box-shadow:0 0 0 4px rgba(18,184,134,.09)}
+    textarea{min-height:104px}
+    input[type=file]::file-selector-button{background:#f3f6f4;font-weight:590}
+    input[type=checkbox]{accent-color:var(--accent)}
+    button{padding:10px 15px;background:var(--accent);font-size:.75rem;font-weight:620;box-shadow:0 4px 12px rgba(18,184,134,.18)}
+    button:hover:not(:disabled){background:#0fa779;box-shadow:0 7px 18px rgba(18,184,134,.23)}
+    button.secondary{background:#f3f6f4;color:#48504b;box-shadow:none}
+    button.secondary:hover:not(:disabled){background:#e9efeb;box-shadow:none}
+    button.danger{color:var(--red);background:var(--red-soft)}
+    .status{color:var(--accent-dark);font-size:.73rem;font-weight:590}
+    .notice{background:var(--accent-soft);border-color:rgba(18,184,134,.14);color:#316353}
+    .notice.warn{background:var(--amber-soft);border-color:#f7e4b9;color:#805e28}
+    .pill{background:#fff;font-size:.64rem;font-weight:600;color:#656b67}
+    .pill::before{background:var(--accent);box-shadow:0 0 0 3px rgba(18,184,134,.1)}
+    .step{background:#f8faf9;border-color:var(--line);border-radius:13px;font-size:.78rem}
+    .step strong{font-weight:640}
+    pre{background:#f7f9f8;color:#48504b;border-color:var(--line);box-shadow:none;font-size:11px}
+    .decision{font-size:1.45rem;font-weight:520}
+    .progress{background:#edf0ee}.progress span{background:linear-gradient(90deg,var(--accent),#7bd8bd)}
+    .camera-preview{background:#f3f5f4;border:1px solid var(--line);box-shadow:none}
+    .camera-preview[hidden]{display:none}
+    .brand,.nav-button,.workspace-bar,.hero-kicker,h1,h2,h3,label,button,input,textarea,select,.pill,.decision{font-family:var(--font-mono);font-variant-ligatures:common-ligatures}
+    .brand small,.hero p,.card p,.notice,.boundary-note{font-family:var(--font-sans)}
+    .session-card>p{margin-bottom:11px}
+    .session-card label{margin-top:11px}
+    .session-card .row{gap:10px}
+    .session-card .actions{margin-top:12px}
+    .session-card .notice{margin-top:12px}
+    .session-actions{align-items:center}
+    .resume-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;margin-top:12px}
+    .resume-row label{margin:0}.resume-row button{margin-bottom:1px}
+    @media(max-width:980px){
+      .shell{grid-template-columns:minmax(0,1fr);width:100%;min-width:0}aside,main{width:100%;min-width:0}aside{position:static;height:auto;padding:15px 18px}.brand{max-width:240px}nav{width:100%;max-width:100%;margin-top:14px}.hero{grid-template-columns:minmax(0,1fr);padding:30px}.transfer-orbit{display:none}.workspace-bar{margin-top:4px}.card,.card.third{grid-column:1/-1}
+    }
+    @media(max-width:640px){
+      main{padding:20px 12px 56px}.workspace-bar{padding:0 4px}.live-chip{display:none}.hero{min-height:0;padding:25px 22px;border-radius:22px}.hero::before{mask-image:linear-gradient(180deg,transparent 35%,#000)}h1{font-size:2.15rem}.hero-badges{display:none}.mode-head{align-items:center}.card{padding:18px;border-radius:17px}.resume-row{grid-template-columns:1fr}.resume-row button{justify-self:start}
+    }
   </style>
 </head>
 <body>
 <div class="shell">
   <aside>
-    <div class="brand">ByFeel<small>teacher knowledge transfer</small></div>
+    <div class="brand">ByFeel<small>knowledge that travels</small></div>
     <nav aria-label="Role modes">
-      <button class="nav-button" data-mode="teacher" aria-selected="true">01 · Teacher</button>
-      <button class="nav-button" data-mode="probe" aria-selected="false">02 · Blind probe</button>
-      <button class="nav-button" data-mode="learner" aria-selected="false">03 · Learner</button>
-      <button class="nav-button" data-mode="gate-c" aria-selected="false">04 · Gate C transfer</button>
-      <button class="nav-button" data-mode="judge" aria-selected="false">05 · Evidence</button>
+      <button class="nav-button" data-step="1" data-mode="teacher" aria-selected="true">Capture expertise</button>
+      <button class="nav-button" data-step="2" data-mode="probe" aria-selected="false">Find what’s missing</button>
+      <button class="nav-button" data-step="3" data-mode="learner" aria-selected="false">Guide a learner</button>
+      <button class="nav-button" data-step="4" data-mode="gate-c" aria-selected="false">Compare outcomes</button>
+      <button class="nav-button" data-step="5" data-mode="judge" aria-selected="false">Proof &amp; history</button>
     </nav>
+    <label style="color:#c9ddd3">Judge access code<input id="access-code" type="password" autocomplete="current-password" placeholder="Provided with demo"></label>
     <div class="boundary-note">Roles are application-enforced. The blind probe gets a fresh ADK session and only the frozen learner artifact—not teacher media, transcript, notes, or prior reasoning.</div>
   </aside>
   <main>
+    <div class="workspace-bar"><span class="workspace-path">ByFeel studio / New transfer</span><span class="live-chip">Local-first workspace</span></div>
     <header class="hero">
-      <h1>Teach the detail<br>words leave out.</h1>
-      <p>ByFeel observes a bounded expert demonstration, asks a fresh novice agent what is genuinely missing, and turns one approved answer into learner guidance.</p>
+      <div class="hero-copy">
+        <span class="hero-kicker">Physical knowledge, made transferable</span>
+        <h1>Show it once.<br>Teach it better.</h1>
+        <p>ByFeel watches an expert demonstration, finds the detail a novice would miss, and turns one teacher-approved repair into guidance that travels.</p>
+        <div class="hero-badges"><span class="hero-badge">Source video stays local</span><span class="hero-badge">Teacher-approved facts only</span><span class="hero-badge">Every repair is traceable</span></div>
+      </div>
+      <div class="transfer-orbit" aria-hidden="true">
+        <div class="orbit-line"></div>
+        <div class="orbit-node teacher"><div><span>✋</span>Expert</div></div>
+        <div class="orbit-node agent"><div><span>✦</span>ByFeel</div></div>
+        <div class="orbit-node learner"><div><span>✓</span>Learner</div></div>
+      </div>
     </header>
 
     <section id="mode-teacher" class="mode active" aria-labelledby="teacher-heading">
       <div class="mode-head"><div><span class="eyebrow">Teacher-only context</span><h2 id="teacher-heading">Capture → review facts → approve</h2></div><span class="pill">Teaching Partner</span></div>
       <div class="grid">
-        <article class="card">
+        <article class="card session-card">
           <h3>1. Start or resume a session</h3>
-          <p>Upload one bounded demonstration. Silent mode sends frames only; spoken mode includes its audio track.</p>
+          <p>Select one bounded demonstration. The hosted flow sends frames only; spoken facts are added during mandatory teacher review.</p>
           <div class="row"><label>Title<input id="title" value="Fold a paper marker"></label><label>Domain<input id="domain" value="paper craft"></label></div>
           <label>Learner goal<input id="goal" value="Make a stable folded marker"></label>
           <div class="row"><label>Speech mode<select id="speech-mode"><option value="silent">Silent — visual only</option><option value="spoken">Spoken — audio + visual</option><option value="unsure">Unsure — inspect audio</option></select></label><label>Teacher video<input id="teacher-video" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska,.mkv"></label></div>
           <div class="actions"><button id="camera-start" class="secondary">Record low-bandwidth camera</button><button id="camera-stop" class="secondary" disabled>Stop camera</button></div>
           <video id="camera-preview" class="camera-preview" autoplay muted playsinline hidden></video>
           <p id="camera-status" class="status" role="status"></p>
-          <div class="notice warn">The raw file streams only to this local app (up to 512 MiB). Large videos are decoded into a 640 px / 8 fps proxy; Gemini receives only 512 px sampled JPEGs and optional mono 16 kHz audio, capped at 5 MiB total.</div>
-          <div class="actions"><button id="process-media">Create session & process video</button></div>
-          <button id="seed-demo" class="secondary">Load seeded rehearsal · 0 model calls</button>
-          <label>Resume session ID<input id="resume-id" placeholder="teacher-…"></label>
-          <button id="resume" class="secondary">Resume</button>
+          <div class="notice warn">Your source video stays on this device. The browser sends only 6–18 compressed frames (maximum 768 px and 5 MiB decoded total). No source video or audio is uploaded; add any spoken facts during human review.</div>
+          <div class="actions session-actions"><button id="prepare-media" class="secondary">Prepare private frame package</button><button id="process-media">Create session & analyze frames</button><button id="seed-demo" class="secondary">Load seeded rehearsal · 0 model calls</button></div>
+          <div class="resume-row"><label>Resume session ID<input id="resume-id" placeholder="teacher-…"></label><button id="resume" class="secondary">Resume</button></div>
           <p id="media-status" class="status" role="status"></p>
         </article>
 
@@ -174,8 +308,8 @@
     </section>
 
     <section id="mode-gate-c" class="mode" aria-labelledby="gate-c-heading">
-      <div class="mode-head"><div><span class="eyebrow">Facilitator-only experiment setup</span><h2 id="gate-c-heading">Compare static instructions with ByFeel repair</h2></div><span class="pill">Decision Gate C</span></div>
-      <div class="notice warn">Run both arms with the same deliberate incorrect state. The baseline receives only the extracted static version; the ByFeel arm receives only the approved learner version and its validated teacher correction. Synthetic rehearsal is clearly excluded from a real Gate C pass.</div>
+      <div class="mode-head"><div><span class="eyebrow">Facilitated transfer study</span><h2 id="gate-c-heading">Did repaired guidance help?</h2></div><span class="pill">Outcome comparison</span></div>
+      <div class="notice warn">Run two comparable attempts with the same predeclared incorrect state. One learner sees static instructions; the other receives the approved teacher-derived repair. Synthetic rehearsal is always labelled and excluded from real transfer evidence.</div>
       <div class="grid">
         <article class="card">
           <h3>1. Pin the experiment</h3>
@@ -185,11 +319,11 @@
           <label>Checkpoint step<select id="gatec-step"></select></label>
           <label>Agreed deliberate incorrect state<textarea id="gatec-incorrect-state">The learner deliberately reaches the visibly incorrect checkpoint state.</textarea></label>
           <label><input id="gatec-safety" type="checkbox"> I confirm this is a low-risk task and no unavailable sense is required.</label>
-          <div class="actions"><button id="gatec-create">Create Gate C experiment</button><button id="gatec-load-seeded" class="secondary">Load synthetic rehearsal</button></div>
+          <div class="actions"><button id="gatec-create">Create comparison</button><button id="gatec-load-seeded" class="secondary">Load synthetic rehearsal</button></div>
           <p id="gatec-setup-status" class="status" role="status"></p>
         </article>
         <article class="card">
-          <h3>2. Evidence boundary</h3>
+          <h3>2. What each learner sees</h3>
           <div class="pills"><span class="pill">Same procedure ID</span><span class="pill">Exact version hashes</span><span class="pill">Fresh learner session per arm</span><span class="pill">Append-only attempts</span></div>
           <div class="notice">Do not enter names, email addresses, raw media, or hidden teacher notes. A missing, uncertain, or human-confirmation result is never counted as a successful transfer.</div>
           <pre id="gatec-identity">Create an experiment to show its pinned identity.</pre>
@@ -232,15 +366,15 @@
           <h3>4. Judge-facing comparison</h3>
           <div id="gatec-report-status" class="decision">PENDING</div>
           <p id="gatec-report-limitation">Both arms and a human review are required.</p>
-          <pre id="gatec-report">No Gate C report yet.</pre>
+          <pre id="gatec-report">No outcome comparison yet.</pre>
         </article>
       </div>
     </section>
 
     <section id="mode-judge" class="mode" aria-labelledby="judge-heading">
-      <div class="mode-head"><div><span class="eyebrow">Read-only judge view</span><h2 id="judge-heading">Evidence, boundaries, and honest limits</h2></div><span class="pill">Application-safe telemetry</span></div>
+      <div class="mode-head"><div><span class="eyebrow">Read-only judge view</span><h2 id="judge-heading">Proof, boundaries, and history</h2></div><span class="pill">Application-safe telemetry</span></div>
       <div class="grid">
-        <article class="card third"><h3>Gate A status</h3><div id="gate-status" class="decision">INCOMPLETE</div><p id="gate-copy">A working UI is not experimental evidence.</p></article>
+        <article class="card third"><h3>Mechanism validation</h3><div id="gate-status" class="decision">INCOMPLETE</div><p id="gate-copy">A working UI is not experimental evidence.</p></article>
         <article class="card third"><h3>Orchestration</h3><p id="agent-summary">No procedure selected.</p><div id="agent-pills" class="pills"></div></article>
         <article class="card third"><h3>Blindness proof</h3><p>Fresh session, frozen projection, read-only tool policy.</p><div id="boundary-pills" class="pills"></div></article>
         <article class="card"><h3>Human approvals & audit timeline</h3><div id="audit-timeline" class="steps"><div class="step">Complete a flow to populate evidence.</div></div></article>
@@ -250,19 +384,29 @@
   </main>
 </div>
 <script>
-  const state = {teacherSessionId:localStorage.getItem('byfeelTeacherSession'), procedure:null, probe:null, learnerSessionId:localStorage.getItem('byfeelLearnerSession'), step:null, gateCExperimentId:null, gateC:null, gateCVersions:null, capturedVideo:null, cameraStream:null, cameraRecorder:null, cameraChunks:[]};
+  const state = {teacherSessionId:localStorage.getItem('byfeelTeacherSession'), procedure:null, probe:null, learnerSessionId:localStorage.getItem('byfeelLearnerSession'), step:null, gateCExperimentId:null, gateC:null, gateCVersions:null, capturedPackage:null, cameraStream:null, cameraFrames:[], cameraTimer:null, cameraStartedAt:null};
   const $ = id => document.getElementById(id);
   const esc = value => String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
   const setStatus = (id, message, error=false) => { const el=$(id); el.textContent=message; el.classList.toggle('error',error); };
   async function api(path, body, method='POST') {
-    const options={method,headers:{}}; if(body!==undefined){options.headers['content-type']='application/json';options.body=JSON.stringify(body);}
+    const options={method,headers:{}};const code=localStorage.getItem('byfeelAccessCode');if(code)options.headers['x-byfeel-access-code']=code;if(body!==undefined){options.headers['content-type']='application/json';options.body=JSON.stringify(body);}
     const response=await fetch(path,options); const data=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(data.error?.message || `Request failed (${response.status})`); return data;
   }
-  function videoContentType(file){if(file.type)return file.type;const ext=file.name.split('.').pop().toLowerCase();return ({mkv:'video/x-matroska',mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime'})[ext]||'application/octet-stream';}
-  async function streamVideo(sessionId,file){const response=await fetch(`/api/teacher/sessions/${sessionId}/media-stream`,{method:'POST',headers:{'content-type':videoContentType(file)},body:file});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error?.message||`Request failed (${response.status})`);return data;}
   async function asBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result.split(',')[1]);r.onerror=reject;r.readAsDataURL(file);});}
   async function uploadImage(file,source){if(!file)return null;return api('/api/evidence',{content_base64:await asBase64(file),content_type:file.type,source});}
+  const waitFor=(target,event)=>new Promise((resolve,reject)=>{const done=()=>{cleanup();resolve();};const fail=()=>{cleanup();reject(new Error('The browser could not decode this video.'));};const cleanup=()=>{target.removeEventListener(event,done);target.removeEventListener('error',fail);};target.addEventListener(event,done,{once:true});target.addEventListener('error',fail,{once:true});});
+  const blobToBase64=blob=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(blob);});
+  const canvasBlob=(canvas,quality)=>new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Frame compression failed.')),'image/jpeg',quality));
+  function drawBoundedFrame(video,maxDimension=768){const scale=Math.min(1,maxDimension/Math.max(video.videoWidth,video.videoHeight));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(video.videoWidth*scale));canvas.height=Math.max(1,Math.round(video.videoHeight*scale));const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(video,0,0,canvas.width,canvas.height);return {canvas,context};}
+  function frameQuality(context,width,height){const data=context.getImageData(0,0,width,height).data;let brightness=0,edges=0,count=0,previous=null;for(let y=0;y<height;y+=8){previous=null;for(let x=0;x<width;x+=8){const i=(y*width+x)*4;const value=(data[i]+data[i+1]+data[i+2])/(3*255);brightness+=value;if(previous!==null)edges+=Math.abs(value-previous);previous=value;count++;}}brightness/=Math.max(1,count);const sharpness=Math.min(1,edges/Math.max(1,count)*5);return {brightness_score:Number(brightness.toFixed(4)),sharpness_score:Number(sharpness.toFixed(4)),quality_status:(brightness<0.08||brightness>0.97||sharpness<0.008)?'review':'usable'};}
+  async function sourceFingerprint(file){const encoder=new TextEncoder();const metadata=encoder.encode(`${file.name}|${file.size}|${file.lastModified}|${file.type}`);const chunk=65536;const starts=[0,Math.max(0,Math.floor(file.size/2)-chunk/2),Math.max(0,file.size-chunk)];const parts=[metadata];for(const start of starts)parts.push(new Uint8Array(await file.slice(start,Math.min(file.size,start+chunk)).arrayBuffer()));const length=parts.reduce((sum,part)=>sum+part.length,0);const combined=new Uint8Array(length);let offset=0;for(const part of parts){combined.set(part,offset);offset+=part.length;}const digest=await crypto.subtle.digest('SHA-256',combined);return [...new Uint8Array(digest)].map(value=>value.toString(16).padStart(2,'0')).join('');}
+  async function captureVideoFrame(video,timestamp,index,quality=.72,maxDimension=768){if(Number.isFinite(timestamp)){video.currentTime=Math.min(timestamp,Math.max(0,video.duration-.02));await waitFor(video,'seeked');}const {canvas,context}=drawBoundedFrame(video,maxDimension);const blob=await canvasBlob(canvas,quality);return {sample_id:`frame-${String(index).padStart(2,'0')}`,timestamp_seconds:Number(timestamp.toFixed(3)),width:canvas.width,height:canvas.height,content_type:'image/jpeg',content_base64:await blobToBase64(blob),...frameQuality(context,canvas.width,canvas.height),_bytes:blob.size};}
+  async function captureLiveFrame(video,timestamp,index){const {canvas,context}=drawBoundedFrame(video);const blob=await canvasBlob(canvas,.72);return {sample_id:`frame-${String(index).padStart(2,'0')}`,timestamp_seconds:Number(timestamp.toFixed(3)),width:canvas.width,height:canvas.height,content_type:'image/jpeg',content_base64:await blobToBase64(blob),...frameQuality(context,canvas.width,canvas.height),_bytes:blob.size};}
+  async function buildFileEvidencePackage(file){const video=document.createElement('video');video.preload='metadata';video.muted=true;video.playsInline=true;const url=URL.createObjectURL(file);video.src=url;try{await waitFor(video,'loadedmetadata');if(!Number.isFinite(video.duration)||video.duration<=0)throw new Error('Video duration is unavailable.');const count=Math.min(18,Math.max(6,Math.ceil(video.duration)));const frames=[];for(let index=1;index<=count;index++){setStatus('media-status',`Preparing low-bandwidth frame ${index}/${count} on this device…`);frames.push(await captureVideoFrame(video,video.duration*(index-.5)/count,index));}const total=frames.reduce((sum,frame)=>sum+frame._bytes,0);if(total>5*1024*1024)throw new Error('Derived frames exceed 5 MiB. Use a shorter clip or lower-resolution source.');const reviews=frames.filter(frame=>frame.quality_status==='review').length;if(reviews>Math.floor(count/2))throw new Error(`${reviews}/${count} frames are too dark, washed out, or visually flat. Improve lighting or camera angle.`);frames.forEach(frame=>delete frame._bytes);return {policy_version:'browser-evidence-v1',capture_kind:'file',source_pseudonym:`src-${crypto.randomUUID().replaceAll('-','').slice(0,16)}`,source_fingerprint:await sourceFingerprint(file),source_fingerprint_strategy:'sampled-sha256-v1',source_size_bytes:file.size,duration_seconds:Number(video.duration.toFixed(3)),source_width:video.videoWidth,source_height:video.videoHeight,evidence_sampling_fps:Number((count/video.duration).toFixed(4)),frames};}finally{URL.revokeObjectURL(url);video.remove();}}
+  async function uploadEvidencePackage(sessionId,packageData){return api(`/api/teacher/sessions/${sessionId}/evidence-package`,packageData);}
+  $('access-code').value=localStorage.getItem('byfeelAccessCode')||'';
+  $('access-code').onchange=()=>localStorage.setItem('byfeelAccessCode',$('access-code').value.trim());
   function switchMode(mode){document.querySelectorAll('.mode').forEach(el=>el.classList.toggle('active',el.id===`mode-${mode}`));document.querySelectorAll('.nav-button').forEach(el=>el.setAttribute('aria-selected',el.dataset.mode===mode));if(mode==='judge')loadJudgeEvidence();if(mode==='gate-c'){loadGateCVersions();if(state.gateCExperimentId)loadGateCExperiment(state.gateCExperimentId);}}
   document.querySelectorAll('.nav-button').forEach(button=>button.onclick=()=>switchMode(button.dataset.mode));
   function renderMedia(review){
@@ -282,7 +426,7 @@
    const blocked=report.status==='blocked'; $('approve-blocker').disabled=!blocked; $('reject-blocker').disabled=!blocked; $('approve-learner').disabled=blocked;
  }
   async function loadGateCVersions(){
-    if(!state.procedure){$('gatec-procedure-id').value='';$('gatec-setup-status').textContent='Extract or resume a procedure before pinning Gate C.';return;}
+    if(!state.procedure){$('gatec-procedure-id').value='';$('gatec-setup-status').textContent='Extract or resume a procedure before creating a comparison.';return;}
     $('gatec-procedure-id').value=state.procedure.id;
     try{
       const evidence=await api('/api/judge/evidence/'+state.procedure.id,undefined,'GET');
@@ -294,7 +438,7 @@
       $('gatec-step').innerHTML=state.procedure.steps.map(step=>'<option value="'+esc(step.step_id)+'">'+esc(step.order)+'. '+esc(step.action)+'</option>').join('');
       const seeded=state.procedure.id.startsWith('seeded-rehearsal-');
       $('gatec-create').disabled=seeded||baseline.length===0||byfeel.length===0;
-      $('gatec-setup-status').textContent=seeded?'Synthetic rehearsal loaded. It is excluded from any real Gate C pass.':baseline.length&&byfeel.length?'Exact extracted and approved versions are ready.':'Both an extracted baseline and learner-approved repair are required.';
+      $('gatec-setup-status').textContent=seeded?'Synthetic rehearsal loaded. It is excluded from real transfer evidence.':baseline.length&&byfeel.length?'Exact extracted and approved versions are ready.':'Both an extracted baseline and learner-approved repair are required.';
     }catch(error){setStatus('gatec-setup-status',error.message,true);}
   }
   function renderGateCArm(arm,item){
@@ -341,7 +485,7 @@
   }
   $('gatec-create').onclick=async()=>{
     try{
-      if(state.procedure.id.startsWith('seeded-rehearsal-'))throw new Error('Seeded rehearsal procedures cannot create real Gate C experiments.');
+      if(state.procedure.id.startsWith('seeded-rehearsal-'))throw new Error('Seeded rehearsal procedures cannot create real transfer comparisons.');
       const out=await api('/api/gate-c/experiments',{
         learner_pseudonym:$('gatec-pseudonym').value.trim(),
         procedure_id:state.procedure.id,
@@ -363,7 +507,7 @@
       switchMode('gate-c');
       await loadGateCVersions();
       if(out.gate_c){state.gateCExperimentId=out.gate_c.experiment_id;await loadGateCExperiment(state.gateCExperimentId);}
-      setStatus('gatec-setup-status','Synthetic rehearsal loaded. It is excluded from any real Gate C pass.');
+      setStatus('gatec-setup-status','Synthetic rehearsal loaded. It is excluded from real transfer evidence.');
     }catch(error){setStatus('gatec-setup-status',error.message,true);}
   };
   async function startGateCArm(arm){
@@ -418,11 +562,12 @@
       setStatus('gatec-attest-status','Attestation recorded. A real report remains subject to facilitator review.');
     }catch(error){setStatus('gatec-attest-status',error.message,true);}
   };
-  $('teacher-video').onchange=()=>{if($('teacher-video').files[0]){state.capturedVideo=null;setStatus('camera-status','Using the selected local video file.');}};
-  $('camera-start').onclick=async()=>{try{const includeAudio=$('speech-mode').value!=='silent';state.cameraStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640,max:640},height:{ideal:360,max:480},frameRate:{ideal:8,max:10}},audio:includeAudio?{channelCount:1,sampleRate:16000}:false});$('camera-preview').srcObject=state.cameraStream;$('camera-preview').hidden=false;state.cameraChunks=[];const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp8')?'video/webm;codecs=vp8':'video/webm';state.cameraRecorder=new MediaRecorder(state.cameraStream,{mimeType:mime,videoBitsPerSecond:600000,audioBitsPerSecond:32000});state.cameraRecorder.ondataavailable=e=>{if(e.data.size)state.cameraChunks.push(e.data);};state.cameraRecorder.onstop=()=>{const blob=new Blob(state.cameraChunks,{type:'video/webm'});state.capturedVideo=new File([blob],`camera-${Date.now()}.webm`,{type:'video/webm'});state.cameraStream.getTracks().forEach(track=>track.stop());state.cameraStream=null;$('camera-preview').srcObject=null;$('camera-preview').hidden=true;$('camera-start').disabled=false;$('camera-stop').disabled=true;setStatus('camera-status',`Captured ${Math.ceil(state.capturedVideo.size/1024)} KiB low-bandwidth WebM. Ready to process.`);};state.cameraRecorder.start(1000);$('camera-start').disabled=true;$('camera-stop').disabled=false;setStatus('camera-status','Recording at up to 640 px, 10 fps, and 600 kbps locally…');}catch(e){setStatus('camera-status',e.message||'Camera is unavailable or permission was denied.',true);}};
-  $('camera-stop').onclick=()=>{if(state.cameraRecorder&&state.cameraRecorder.state==='recording')state.cameraRecorder.stop();};
-  $('process-media').onclick=async()=>{const file=$('teacher-video').files[0]||state.capturedVideo;if(!file){setStatus('media-status','Choose a video or record the low-bandwidth camera first.',true);return;} $('process-media').disabled=true;setStatus('media-status',`Streaming ${Math.ceil(file.size/1048576)} MiB locally, then preparing low-bandwidth model media…`);try{const session=await api('/api/teacher/sessions',{title:$('title').value,domain:$('domain').value,learner_goal:$('goal').value,constraints:[],speech_mode:$('speech-mode').value});state.teacherSessionId=session.session_id;localStorage.setItem('byfeelTeacherSession',session.session_id);$('resume-id').value=session.session_id;const review=await streamVideo(session.session_id,file);renderMedia(review);setStatus('media-status',`Review required · session ${session.session_id} · model payload ${Math.ceil((review.model_media?.payload_bytes||0)/1024)} KiB`);}catch(e){setStatus('media-status',e.message,true);}finally{$('process-media').disabled=false;}};
-  $('seed-demo').onclick=async()=>{setStatus('media-status','Loading deterministic local fixture…');try{const out=await api('/api/demo/seeded-rehearsal');renderProcedure(out);if(out.gate_c){state.gateCExperimentId=out.gate_c.experiment_id;await loadGateCExperiment(state.gateCExperimentId);}setStatus('media-status','Seeded fixture loaded · 0 model calls · excluded from Gate A and Gate C.');}catch(e){setStatus('media-status',e.message,true);}};
+  $('teacher-video').onchange=()=>{if($('teacher-video').files[0]){state.capturedPackage=null;setStatus('camera-status',`Selected ${Math.ceil($('teacher-video').files[0].size/1048576)} MiB source. It will remain on this device.`);}};
+  $('prepare-media').onclick=async()=>{const file=$('teacher-video').files[0];if(!file){setStatus('media-status','Choose a video file first.',true);return;}$('prepare-media').disabled=true;try{state.capturedPackage=await buildFileEvidencePackage(file);const bytes=state.capturedPackage.frames.reduce((sum,frame)=>sum+Math.floor(frame.content_base64.length*3/4),0);const reviews=state.capturedPackage.frames.filter(frame=>frame.quality_status==='review').length;setStatus('media-status',`Private package ready · source ${Math.ceil(file.size/1048576)} MiB stayed on device · ${state.capturedPackage.frames.length} frames / ${Math.ceil(bytes/1024)} KiB · ${reviews} need visual review`);}catch(e){state.capturedPackage=null;setStatus('media-status',e.message,true);}finally{$('prepare-media').disabled=false;}};
+  $('camera-start').onclick=async()=>{try{state.cameraStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:768,max:768},height:{ideal:432,max:768},frameRate:{ideal:8,max:10}},audio:false});$('camera-preview').srcObject=state.cameraStream;$('camera-preview').hidden=false;await waitFor($('camera-preview'),'loadedmetadata');state.cameraFrames=[];state.capturedPackage=null;state.cameraStartedAt=performance.now();const capture=async()=>{if(!state.cameraStream||state.cameraFrames.length>=18)return;const elapsed=(performance.now()-state.cameraStartedAt)/1000;state.cameraFrames.push(await captureLiveFrame($('camera-preview'),elapsed,state.cameraFrames.length+1));setStatus('camera-status',`Captured ${state.cameraFrames.length}/18 low-bandwidth frames locally. Record at least 6 seconds.`);if(state.cameraFrames.length>=18)$('camera-stop').click();};await capture();state.cameraTimer=setInterval(()=>capture().catch(error=>setStatus('camera-status',error.message,true)),1000);$('camera-start').disabled=true;$('camera-stop').disabled=false;}catch(e){setStatus('camera-status',e.message||'Camera is unavailable or permission was denied.',true);}};
+  $('camera-stop').onclick=async()=>{if(!state.cameraStream)return;clearInterval(state.cameraTimer);state.cameraTimer=null;const duration=(performance.now()-state.cameraStartedAt)/1000;state.cameraStream.getTracks().forEach(track=>track.stop());state.cameraStream=null;$('camera-preview').srcObject=null;$('camera-preview').hidden=true;$('camera-start').disabled=false;$('camera-stop').disabled=true;if(state.cameraFrames.length<6){state.cameraFrames=[];setStatus('camera-status','Capture needs at least 6 frames. Record for at least 6 seconds.',true);return;}const total=state.cameraFrames.reduce((sum,frame)=>sum+frame._bytes,0);const reviews=state.cameraFrames.filter(frame=>frame.quality_status==='review').length;if(total>5*1024*1024||reviews>Math.floor(state.cameraFrames.length/2)){state.cameraFrames=[];setStatus('camera-status','Camera evidence is oversized or mostly unusable. Improve the view and retry.',true);return;}state.cameraFrames.forEach(frame=>delete frame._bytes);const fingerprintBytes=new TextEncoder().encode(state.cameraFrames.map(frame=>`${frame.timestamp_seconds}:${frame.content_base64.slice(0,64)}`).join('|'));const digest=await crypto.subtle.digest('SHA-256',fingerprintBytes);const fingerprint=[...new Uint8Array(digest)].map(value=>value.toString(16).padStart(2,'0')).join('');state.capturedPackage={policy_version:'browser-evidence-v1',capture_kind:'camera',source_pseudonym:`cam-${crypto.randomUUID().replaceAll('-','').slice(0,16)}`,source_fingerprint:fingerprint,source_fingerprint_strategy:'sampled-sha256-v1',source_size_bytes:total,duration_seconds:Number(duration.toFixed(3)),source_width:state.cameraFrames[0].width,source_height:state.cameraFrames[0].height,evidence_sampling_fps:Number((state.cameraFrames.length/duration).toFixed(4)),frames:state.cameraFrames};setStatus('camera-status',`Ready: ${state.cameraFrames.length} frames, ${Math.ceil(total/1024)} KiB. No video or audio will be uploaded.`);};
+  $('process-media').onclick=async()=>{const file=$('teacher-video').files[0];if(!file&&!state.capturedPackage){setStatus('media-status','Choose a video or capture at least 6 camera frames first.',true);return;}$('process-media').disabled=true;try{const packageData=state.capturedPackage||await buildFileEvidencePackage(file);const bytes=packageData.frames.reduce((sum,frame)=>sum+Math.floor(frame.content_base64.length*3/4),0);setStatus('media-status',`Uploading ${packageData.frames.length} derived frames (${Math.ceil(bytes/1024)} KiB); source video stays on this device…`);const session=await api('/api/teacher/sessions',{title:$('title').value,domain:$('domain').value,learner_goal:$('goal').value,constraints:[],speech_mode:$('speech-mode').value});state.teacherSessionId=session.session_id;localStorage.setItem('byfeelTeacherSession',session.session_id);$('resume-id').value=session.session_id;const review=await uploadEvidencePackage(session.session_id,packageData);renderMedia(review);setStatus('media-status',`Review required · session ${session.session_id} · ${review.frames.length} frames · source not uploaded`);}catch(e){setStatus('media-status',e.message,true);}finally{$('process-media').disabled=false;}};
+  $('seed-demo').onclick=async()=>{setStatus('media-status','Loading deterministic local fixture…');try{const out=await api('/api/demo/seeded-rehearsal');renderProcedure(out);if(out.gate_c){state.gateCExperimentId=out.gate_c.experiment_id;await loadGateCExperiment(state.gateCExperimentId);}setStatus('media-status','Seeded fixture loaded · 0 model calls · synthetic only, never real evidence.');}catch(e){setStatus('media-status',e.message,true);}};
   $('resume').onclick=async()=>{try{const id=$('resume-id').value.trim();const out=await api(`/api/teacher/sessions/${id}`,undefined,'GET');state.teacherSessionId=id;localStorage.setItem('byfeelTeacherSession',id);if(out.media_review)renderMedia(out.media_review);if(out.session.status==='facts_approved')$('extract').disabled=false;if(out.procedure&&out.probe_run)renderProcedure({procedure:out.procedure,probe_run:out.probe_run});setStatus('media-status',`Resumed ${id} · ${out.session.status}`);}catch(e){setStatus('media-status',e.message,true);}};
   $('approve-facts').onclick=async()=>{try{await api(`/api/teacher/sessions/${state.teacherSessionId}/factual-approval`,{approved_factual_record:$('factual-record').value});$('approve-facts').disabled=true;$('extract').disabled=false;setStatus('facts-status','Immutable factual approval recorded. Extraction is now allowed.');}catch(e){setStatus('facts-status',e.message,true);}};
   $('extract').onclick=async()=>{$('extract').disabled=true;setStatus('facts-status','Teaching Partner is extracting, then launching a fresh blind probe…');try{renderProcedure(await api(`/api/teacher/sessions/${state.teacherSessionId}/extract`));setStatus('facts-status','Procedure extracted from the approved record only.');}catch(e){setStatus('facts-status',e.message,true);$('extract').disabled=false;}};
@@ -434,7 +579,7 @@
   $('resume-learner').onclick=async()=>{try{const id=$('learner-resume-id').value.trim();const out=await api(`/api/learner/sessions/${id}`,undefined,'GET');state.learnerSessionId=id;localStorage.setItem('byfeelLearnerSession',id);if(!state.procedure||state.procedure.id!==out.session.procedure_id)state.procedure=await api(`/api/procedures/${out.session.procedure_id}`,undefined,'GET');$('learner-procedure').textContent=`${state.procedure.title} · ${state.procedure.steps.length} approved step(s)`;renderStep(out);$('check').disabled=out.session.status!=='active';setStatus('learner-status',`Resumed ${id} · ${out.session.status}`);}catch(e){setStatus('learner-status',e.message,true);}};
   function renderStep(out){if(!out.current_step){$('current-step').textContent='Procedure complete.';$('progress-bar').style.width='100%';return;}state.step=out.current_step;$('current-step').innerHTML=`<strong>${esc(out.current_step.order)}. ${esc(out.current_step.action)}</strong><br>${out.current_step.completion_conditions.length?`Ready when: ${esc(out.current_step.completion_conditions.join('; '))}`:'Follow the approved action.'}`;const total=state.procedure.steps.length;$('progress-bar').style.width=`${(out.session.completed_step_ids.length/total)*100}%`;}
   $('check').onclick=async()=>{$('check').disabled=true;try{const evidence=await uploadImage($('learner-image').files[0],'learner');const out=await api(`/api/learner/sessions/${state.learnerSessionId}/checkpoints`,{step_id:state.step.step_id,description:$('observation').value,evidence});const result=out.latest_event.evaluation;$('guidance').textContent=result.decision.replaceAll('_',' ').toUpperCase();$('guidance-copy').textContent=[result.explanation,result.corrective_guidance].filter(Boolean).join(' · ');renderStep(out);setStatus('learner-status',out.session.status==='completed'?'Procedure complete.':`Attempt ${out.session.attempts} recorded.`);if(out.session.status==='active')$('check').disabled=false;}catch(e){setStatus('learner-status',e.message,true);$('check').disabled=false;}};
-  async function loadJudgeEvidence(){if(!state.procedure){$('agent-summary').textContent='Complete or resume a procedure flow first.';return;}try{const out=await api(`/api/judge/evidence/${state.procedure.id}`,undefined,'GET');$('gate-status').textContent=out.gate_a.status.toUpperCase();$('gate-copy').textContent=`${out.gate_a.recorded_calls_used}/${out.gate_a.call_ceiling} recorded Gate A calls · actual billed cost ${out.gate_a.actual_billed_cost}. ${out.gate_a.limitation}`;$('agent-summary').textContent=`${out.agent_runs.length} safe ADK run record(s); prompts and hidden reasoning are never stored.`;$('agent-pills').innerHTML=out.agent_runs.map(run=>`<span class="pill">${esc(run.role)} · ${esc(run.model)} · ${esc(run.token_usage.total_tokens)} tokens</span>`).join('');$('boundary-pills').innerHTML=out.blindness_boundary.excluded.map(item=>`<span class="pill">Excluded: ${esc(item)}</span>`).join('');$('audit-timeline').innerHTML=out.audit_events.map(event=>`<div class="step"><strong>${esc(event.event_type.replaceAll('_',' '))}</strong><br>${esc(event.summary)}<br><small>${esc(new Date(event.created_at).toLocaleString())}</small></div>`).join('')||'<div class="step">No audit events recorded.</div>';$('version-history').textContent=JSON.stringify({versions:out.procedure_versions,corrections:out.corrections,probe_runs:out.probe_runs,blocker_reviews:out.blocker_reviews},null,2);}catch(e){$('agent-summary').textContent=e.message;}}
+  async function loadJudgeEvidence(){if(!state.procedure){$('agent-summary').textContent='Complete or resume a procedure flow first.';return;}try{const out=await api(`/api/judge/evidence/${state.procedure.id}`,undefined,'GET');$('gate-status').textContent=out.gate_a.status.toUpperCase();$('gate-copy').textContent=`${out.gate_a.recorded_calls_used}/${out.gate_a.call_ceiling} recorded validation calls · actual billed cost ${out.gate_a.actual_billed_cost}. ${out.gate_a.limitation}`;$('agent-summary').textContent=`${out.agent_runs.length} safe ADK run record(s); prompts and hidden reasoning are never stored.`;$('agent-pills').innerHTML=out.agent_runs.map(run=>`<span class="pill">${esc(run.role)} · ${esc(run.model)} · ${esc(run.token_usage.total_tokens)} tokens</span>`).join('');$('boundary-pills').innerHTML=out.blindness_boundary.excluded.map(item=>`<span class="pill">Excluded: ${esc(item)}</span>`).join('');$('audit-timeline').innerHTML=out.audit_events.map(event=>`<div class="step"><strong>${esc(event.event_type.replaceAll('_',' '))}</strong><br>${esc(event.summary)}<br><small>${esc(new Date(event.created_at).toLocaleString())}</small></div>`).join('')||'<div class="step">No audit events recorded.</div>';$('version-history').textContent=JSON.stringify({versions:out.procedure_versions,corrections:out.corrections,probe_runs:out.probe_runs,blocker_reviews:out.blocker_reviews},null,2);}catch(e){$('agent-summary').textContent=e.message;}}
   if(state.teacherSessionId)$('resume-id').value=state.teacherSessionId;
   if(state.learnerSessionId)$('learner-resume-id').value=state.learnerSessionId;
   const storedProcedureId=localStorage.getItem('byfeelProcedure');

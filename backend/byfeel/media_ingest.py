@@ -15,7 +15,7 @@ from typing import Literal, Protocol
 
 from pydantic import Field, model_validator
 
-from .models import StrictModel, TeacherDemo
+from .models import EvidenceRef, StrictModel, TeacherDemo
 
 LARGE_SOURCE_THRESHOLD_BYTES = 50 * 1024 * 1024
 MODEL_FRAME_WIDTH = 512
@@ -23,6 +23,10 @@ MODEL_PROXY_WIDTH = 640
 MODEL_PROXY_FPS = 8
 MODEL_AUDIO_SAMPLE_RATE = 16_000
 MAX_MODEL_MEDIA_BYTES = 5 * 1024 * 1024
+BROWSER_EVIDENCE_MIN_FRAMES = 6
+BROWSER_EVIDENCE_MAX_FRAMES = 18
+BROWSER_EVIDENCE_MAX_DIMENSION = 768
+BROWSER_EVIDENCE_POLICY = "browser-evidence-v1"
 
 
 class SpeechMode(StrEnum):
@@ -44,6 +48,50 @@ class FrameSample(StrictModel):
     sample_id: str
     timestamp_seconds: float = Field(ge=0)
     path: str
+    evidence: EvidenceRef | None = None
+
+
+class BrowserEvidenceFrame(StrictModel):
+    sample_id: str = Field(pattern=r"^frame-[0-9]{2}$")
+    timestamp_seconds: float = Field(ge=0)
+    width: int = Field(gt=0, le=BROWSER_EVIDENCE_MAX_DIMENSION)
+    height: int = Field(gt=0, le=BROWSER_EVIDENCE_MAX_DIMENSION)
+    content_type: Literal["image/jpeg", "image/webp"]
+    content: bytes = Field(min_length=32)
+    brightness_score: float = Field(ge=0, le=1)
+    sharpness_score: float = Field(ge=0, le=1)
+    quality_status: Literal["usable", "review"]
+
+
+class BrowserEvidencePackage(StrictModel):
+    policy_version: Literal["browser-evidence-v1"] = BROWSER_EVIDENCE_POLICY
+    capture_kind: Literal["file", "camera"]
+    source_pseudonym: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$")
+    source_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_fingerprint_strategy: Literal["sampled-sha256-v1"]
+    source_size_bytes: int = Field(ge=0)
+    duration_seconds: float = Field(gt=0)
+    source_width: int = Field(gt=0)
+    source_height: int = Field(gt=0)
+    evidence_sampling_fps: float = Field(gt=0)
+    frames: list[BrowserEvidenceFrame] = Field(
+        min_length=BROWSER_EVIDENCE_MIN_FRAMES,
+        max_length=BROWSER_EVIDENCE_MAX_FRAMES,
+    )
+
+    @model_validator(mode="after")
+    def validate_frame_order_and_payload(self) -> BrowserEvidencePackage:
+        expected_ids = [f"frame-{index:02d}" for index in range(1, len(self.frames) + 1)]
+        if [frame.sample_id for frame in self.frames] != expected_ids:
+            raise ValueError("browser evidence frame IDs must be ordered and contiguous")
+        timestamps = [frame.timestamp_seconds for frame in self.frames]
+        if timestamps != sorted(timestamps) or len(set(timestamps)) != len(timestamps):
+            raise ValueError("browser evidence timestamps must be unique and ordered")
+        if timestamps[-1] > self.duration_seconds + 0.01:
+            raise ValueError("browser evidence timestamp exceeds source duration")
+        if sum(len(frame.content) for frame in self.frames) > MAX_MODEL_MEDIA_BYTES:
+            raise ValueError("browser evidence exceeds the 5 MiB low-bandwidth payload limit")
+        return self
 
 
 class DemonstrationEvent(StrictModel):
@@ -85,6 +133,8 @@ class MediaDraft(StrictModel):
     run_id: str
     source_path: str
     source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_hash_strategy: str = "full-file-sha256"
+    source_kind: Literal["local_video", "browser_evidence"] = "local_video"
     title: str
     domain: str
     learner_goal: str
@@ -395,6 +445,148 @@ def analyze_teacher_media(
         analysis_model=client.model,
         analysis=analysis,
     )
+
+
+def analyze_teacher_evidence_package(
+    *,
+    client: MultimodalClient,
+    package: BrowserEvidencePackage,
+    run_dir: Path,
+    title: str,
+    domain: str,
+    learner_goal: str,
+    constraints: list[str],
+    speech_mode: str | SpeechMode,
+) -> MediaDraft:
+    """Analyze a browser-derived package without receiving its high-resolution source."""
+
+    try:
+        speech_mode = SpeechMode(speech_mode)
+    except ValueError as error:
+        raise ValueError("speech_mode must be silent, spoken, or unsure") from error
+    frames_dir = run_dir / "frames"
+    frames_dir.mkdir(parents=True, exist_ok=False)
+    samples: list[FrameSample] = []
+    media: list[tuple[bytes, str]] = []
+    for frame in package.frames:
+        actual_width, actual_height = image_dimensions(frame.content, frame.content_type)
+        if (actual_width, actual_height) != (frame.width, frame.height):
+            raise ValueError(f"{frame.sample_id} dimensions do not match its encoded image")
+        extension = ".jpg" if frame.content_type == "image/jpeg" else ".webp"
+        path = frames_dir / f"{frame.sample_id}{extension}"
+        path.write_bytes(frame.content)
+        samples.append(
+            FrameSample(
+                sample_id=frame.sample_id,
+                timestamp_seconds=frame.timestamp_seconds,
+                path=str(path),
+            )
+        )
+        media.append((frame.content, frame.content_type))
+    model_payload_bytes = sum(len(data) for data, _ in media)
+    if model_payload_bytes > MAX_MODEL_MEDIA_BYTES:
+        raise ValueError("browser evidence exceeds the 5 MiB low-bandwidth payload limit")
+    order = ", ".join(f"{sample.sample_id}={sample.timestamp_seconds:.3f}s" for sample in samples)
+    prompt = (
+        f"SPEECH MODE DECLARED BY TEACHER: {speech_mode}\n"
+        "HOSTED EVIDENCE PACKAGE: frames only; no source video or audio was uploaded. "
+        "Do not infer speech or produce a spoken transcript. The teacher must add any spoken "
+        "facts during human review.\n"
+        f"DURATION: {package.duration_seconds:.3f}s\n"
+        f"FRAME ORDER AND REQUIRED OBSERVATION IDS: {order}\n"
+        f"REQUIRED FRAME OBSERVATION COUNT: {len(samples)}\n"
+        "Complete the frame pass before the change pass. Preserve uncertainty between sampled "
+        "frames and do not reconstruct unseen motion."
+    )
+    analysis = client.generate_with_media(
+        system=MEDIA_ANALYSIS_SYSTEM,
+        prompt=prompt,
+        media=media,
+        schema=MediaAnalysis,
+    )
+    if analysis.teacher_spoke or analysis.spoken_transcript:
+        raise ValueError("frame-only browser evidence cannot support inferred teacher speech")
+    expected_ids = [sample.sample_id for sample in samples]
+    observed_ids = [observation.sample_id for observation in analysis.frame_observations]
+    if observed_ids != expected_ids:
+        raise ValueError(
+            "media analysis must contain one ordered observation for every supplied frame"
+        )
+    metadata = MediaMetadata(
+        duration_seconds=package.duration_seconds,
+        width=package.source_width,
+        height=package.source_height,
+        frames_per_second=package.evidence_sampling_fps,
+        audio_stream_present=False,
+        source_size_bytes=package.source_size_bytes,
+    )
+    return MediaDraft(
+        run_id=run_dir.name,
+        source_path=f"browser-evidence://{package.source_pseudonym}",
+        source_sha256=package.source_fingerprint,
+        source_hash_strategy=package.source_fingerprint_strategy,
+        source_kind="browser_evidence",
+        title=title,
+        domain=domain,
+        learner_goal=learner_goal,
+        constraints=constraints,
+        speech_mode=speech_mode,
+        sampling_strategy=f"{package.policy_version}-{len(samples)}-frames",
+        metadata=metadata,
+        frame_samples=samples,
+        model_payload_bytes=model_payload_bytes,
+        model_payload_limit_bytes=MAX_MODEL_MEDIA_BYTES,
+        source_media_sent_to_model=False,
+        analysis_model=client.model,
+        analysis=analysis,
+    )
+
+
+def image_dimensions(content: bytes, content_type: str) -> tuple[int, int]:
+    """Read JPEG/WebP dimensions without decoding pixels or trusting browser metadata."""
+
+    if content_type == "image/jpeg":
+        if not content.startswith(b"\xff\xd8"):
+            raise ValueError("browser evidence JPEG has an invalid signature")
+        offset = 2
+        while offset + 9 < len(content):
+            if content[offset] != 0xFF:
+                offset += 1
+                continue
+            marker = content[offset + 1]
+            offset += 2
+            if marker in {0xD8, 0xD9}:
+                continue
+            if offset + 2 > len(content):
+                break
+            length = int.from_bytes(content[offset : offset + 2], "big")
+            if length < 2 or offset + length > len(content):
+                break
+            if marker in {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB}:
+                height = int.from_bytes(content[offset + 3 : offset + 5], "big")
+                width = int.from_bytes(content[offset + 5 : offset + 7], "big")
+                if width and height:
+                    return width, height
+            offset += length
+        raise ValueError("browser evidence JPEG dimensions are unreadable")
+    if content_type == "image/webp":
+        if len(content) < 30 or content[:4] != b"RIFF" or content[8:12] != b"WEBP":
+            raise ValueError("browser evidence WebP has an invalid signature")
+        kind = content[12:16]
+        if kind == b"VP8X":
+            width = 1 + int.from_bytes(content[24:27], "little")
+            height = 1 + int.from_bytes(content[27:30], "little")
+            return width, height
+        if kind == b"VP8L" and content[20] == 0x2F:
+            bits = int.from_bytes(content[21:25], "little")
+            return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1
+        if kind == b"VP8 " and content[23:26] == b"\x9d\x01\x2a":
+            width = int.from_bytes(content[26:28], "little") & 0x3FFF
+            height = int.from_bytes(content[28:30], "little") & 0x3FFF
+            if width and height:
+                return width, height
+        raise ValueError("browser evidence WebP dimensions are unreadable")
+    raise ValueError("browser evidence must be JPEG or WebP")
 
 
 def file_sha256(path: Path) -> str:
