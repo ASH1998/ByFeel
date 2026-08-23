@@ -153,12 +153,15 @@ is visibly labeled, produces no ADK/model evidence, and is excluded from Gate A.
 Teacher and learner session IDs can be resumed after a page refresh while the
 configured repository remains available.
 
-Large teacher videos use the streaming endpoint rather than browser base64.
-Files up to 512 MiB remain local; sources above 50 MiB are decoded once into a
-640-pixel, 8-fps proxy. Gemini receives neither source nor proxy video—only
-512-pixel sampled JPEGs and optional mono 16 kHz audio, with a hard 5 MiB total
-model-media limit. The browser can also record a bounded 640-pixel, 10-fps,
-600-kbps WebM from a local camera.
+The hosted browser never uploads source video. It derives 6–18 ordered JPEG
+frames on-device, limits each frame to 768 pixels, rejects a predominantly
+unusable package, and sends at most 5 MiB of decoded image evidence. The package
+retains timestamps, dimensions, a sampled source fingerprint, extraction-policy
+version, and a pseudonymous source ID. Live camera uses the same frame-only
+contract. No raw video or audio reaches FastAPI, Cloud Storage, or Gemini;
+spoken facts must be added during mandatory teacher review. The old raw-video
+endpoints are disabled unless a local operator explicitly sets
+`BYFEEL_ALLOW_LOCAL_RAW_VIDEO=1`.
 
 ### Decision Gate C transfer experiment
 
@@ -227,6 +230,7 @@ Useful local endpoints:
 - `GET /api/teacher/sessions/{id}`
 - `POST /api/teacher/sessions/{id}/media`
 - `POST /api/teacher/sessions/{id}/media-stream`
+- `POST /api/teacher/sessions/{id}/evidence-package` (hosted/default path)
 - `POST /api/teacher/sessions/{id}/factual-approval`
 - `POST /api/teacher/sessions/{id}/extract`
 - `GET /api/teacher/sessions/{id}/frames/{sample-id}`
