@@ -74,3 +74,4 @@ experiments/gate_a/*.local.json
 # Local cloud inventory and billing ledger
 cloud-ledger/
 videos/
+sites/

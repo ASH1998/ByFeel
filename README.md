@@ -35,6 +35,8 @@ That makes the result useful, reviewable, and safer to trust.
 5. **Guide the learner:** the Learner Coach checks an observable checkpoint and
    advances only when the learner’s state is ready.
 
+![ByFeel architecture: teacher evidence to safe learner guidance](docs/assets/byfeel-architecture.png)
+
 ## Tech stack, in plain English
 
 - **Python, FastAPI, and Pydantic** — the API, rules, and data contracts.
