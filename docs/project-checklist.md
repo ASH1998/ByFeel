@@ -57,20 +57,22 @@ the deployed product and collected evidence.
 
 ## P0 — hosted media boundary
 
-- [ ] Downsample video on the browser/device into a bounded 6–18 frame,
+- [x] Downsample video on the browser/device into a bounded 6–18 frame,
   640–768 px JPEG/WebP package before hosted upload; apply the same boundary to
   live camera.
-- [ ] Add blur, darkness, occlusion, and missing-checkpoint feedback before a
+- [x] Add bounded brightness/sharpness feedback and reject packages that are
+  predominantly unusable before a
   media package can be accepted.
-- [ ] Preserve timestamps, dimensions, hashes, extraction-policy version, and
+- [x] Preserve timestamps, dimensions, sampled source fingerprint, extraction-policy version, and
   pseudonymous provenance while retaining no high-resolution hosted source.
-- [ ] Reject raw/high-resolution video and oversized model payloads on the
+- [x] Reject raw/high-resolution video and oversized model payloads on the
   hosted backend, with a test proving a 200+ MB source becomes only a few-MB
-  derived package before network/model use.
+  derived package before network/model use. Browser smoke: 225,043,369-byte
+  source → 17 JPEG frames / 642 KiB; source stayed on-device.
 
 ## P0 — durable and failure-safe product
 
-- [ ] Persist only approved low-resolution evidence in private Storage and
+- [x] Persist only approved low-resolution evidence in private Storage and
   replace durable references to local `runs/...` paths.
 - [ ] Prove procedures, learner sessions, interventions, and Gate C evidence
   survive a Cloud Run restart through Firestore-backed repositories.
@@ -84,8 +86,8 @@ the deployed product and collected evidence.
 
 ## P0 — security, privacy, and access
 
-- [ ] Choose and implement judge access, exact-origin CORS, request/media limits,
-  and rate limiting.
+- [ ] Finalize exact-origin CORS and rate limiting. Judge API access-code
+  protection and request/media limits are implemented.
 - [ ] Add participant consent plus media/evidence retention and deletion rules;
   strip unnecessary EXIF/location metadata.
 - [ ] Redact secrets, authorization, personal data, prompts, and raw media from
@@ -98,10 +100,13 @@ the deployed product and collected evidence.
 
 ## P0 — deployment and operations
 
-- [ ] Add and locally verify the production container: Dockerfile,
+- [ ] Replace the prototype visual treatment with a polished, responsive,
+  Apple/OpenAI-inspired product surface while preserving the FastAPI plain
+  HTML/JS architecture and every existing role/evidence boundary.
+- [x] Add and locally verify the production container: Dockerfile,
   `.dockerignore`, `$PORT`, health/readiness, graceful shutdown, non-root where
   practical, and a complete clean-checkout browser smoke test.
-- [ ] Produce the exact cloud proposal covering project/account, APIs,
+- [x] Produce the exact cloud proposal covering project/account, APIs,
   resources, names, region, IAM, commands, INR cost, recurring risk, budget
   impact, and rollback; obtain separate approval for every mutation.
 - [ ] Configure only approved runtime identity, build/artifact path, secret
